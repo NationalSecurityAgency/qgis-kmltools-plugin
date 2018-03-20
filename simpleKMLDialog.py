@@ -90,6 +90,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
         self.inLongitude = False
         self.inAltitude = False
         self.inLocation = False
+        self.inOuterBoundary = False
         self.type = 0 # 0 point, 1 location, 2 linestring, 3 Polygon
         self.name = ""
         self.folders = []
@@ -139,6 +140,8 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
             elif name == "coordinates":
                 self.inCoordinates = True
                 self.coord = ""
+            elif name == "outerBoundaryIs":
+                self.inOuterBoundary = True
             elif name == "longitude" and self.inLocation:
                 self.inLongitude = True
                 self.lon = ""
@@ -175,7 +178,11 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
                 self.description = self.description.strip()
             elif name == "coordinates":
                 self.inCoordinates = False
-                self.coord = self.coord.strip()
+                if self.type == 3:
+                    if self.inOuterBoundary:
+                        self.coord = self.coord.strip()
+                else:
+                    self.coord = self.coord.strip()
             elif name == "longitude" and self.inLocation:
                 self.inLongitude = False
                 self.lon = self.lon.strip()
@@ -190,6 +197,8 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
                 self.inLongitude = False
                 self.inLatitude = False
                 self.inAltitude = False
+            elif name == "outerBoundaryIs":
+                self.inOuterBoundary = False
             elif name == "Placemark":
                 self.inPlacemark = False
                 self.inName = False
