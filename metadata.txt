@@ -1,0 +1,17 @@
+[general]
+name=Simple KML Import
+qgisMinimumVersion=2.12
+description=Simple KML import. 
+version=0.1.0
+author=C Hamilton
+email=adenaculture@gmail.com
+about=Import KML points, lines and polygons into a single respective QGIS layer.
+tracker=https://github.com/NationalSecurityAgency/qgis-simplekml-plugin/issues
+repository=https://github.com/NationalSecurityAgency/qgis-simplekml-plugin
+tags=kml,kmz,points,lines,polygons
+homepage=https://github.com/NationalSecurityAgency/qgis-simplekml-plugin
+category=Vector
+icon=images/shapes.png
+experimental=False
+deprecated=False
+#changelog=
