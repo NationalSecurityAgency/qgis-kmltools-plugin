@@ -59,7 +59,11 @@ class SimpleKMLDialog(QDialog, FORM_CLASS):
         parser = xml.sax.make_parser()
         handler = PlacemarkHandler(self.iface, pts_name, line_name, poly_name)
         parser.setContentHandler(handler)
-        parser.parse(kml)
+        try:
+            parser.parse(kml)
+        except:
+            self.iface.messageBar().pushMessage("", "Failure in kml - May return partial results.", level=QgsMessageBar.CRITICAL, duration=4)
+            handler.endDocument()
         
         if extension == 'kmz':
             kmz.close()
@@ -220,6 +224,9 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
         if self.hasLine:
             self.lineLayer.updateExtents()
             QgsMapLayerRegistry.instance().addMapLayer(self.lineLayer)
+        if self.hasPoly:
+            self.polyLayer.updateExtents()
+            QgsMapLayerRegistry.instance().addMapLayer(self.polyLayer)
             
     def folderString(self):
         if len(self.folders) > 0:
@@ -281,13 +288,30 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
             feature.setAttributes(attr)
             self.lineLayer.dataProvider().addFeatures([feature])
             
+        elif type == 3: #Polygon
+            if not self.hasPoly:
+                self.polyLayer = QgsVectorLayer("Polygon?crs=epsg:4326", self.poly_name, "memory")
+                f = QgsFields()
+                f.append(QgsField("name", QVariant.String))
+                f.append(QgsField("folders", QVariant.String))
+                f.append(QgsField("description", QVariant.String))
+                self.polyLayer.dataProvider().addAttributes(f)
+                self.polyLayer.updateFields()
+                self.hasPoly = True
+                
+            pts = coord2pts(coord)
+            
+            feature = QgsFeature()
+            feature.setGeometry(QgsGeometry.fromPolygon([pts]))
+            attr = [name, self.folderString(), desc]
+            feature.setAttributes(attr)
+            self.polyLayer.dataProvider().addFeatures([feature])
             
             
 def coord2pts(coords):
     pts = []
     coords = coords.strip()
     clist = re.split('\s+', coords)
-    print "number of line coords: ", len(clist)
     
     for pt in clist:
         c = pt.split(',')
