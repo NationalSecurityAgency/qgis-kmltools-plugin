@@ -21,7 +21,7 @@ from qgis.gui import QgsMessageBar
 from zipfile import ZipFile
 import xml.sax, xml.sax.handler
 import sys
-
+import traceback
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'simplekmldialog.ui'))
@@ -62,6 +62,7 @@ class SimpleKMLDialog(QDialog, FORM_CLASS):
         try:
             parser.parse(kml)
         except:
+            traceback.print_exc()
             self.iface.messageBar().pushMessage("", "Failure in kml - May return partial results.", level=QgsMessageBar.CRITICAL, duration=4)
             handler.endDocument()
         
@@ -81,47 +82,58 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
         self.hasLine = False
         self.hasPoly = False
         
+        self.inPlacemark = False
+        self.resetSettings()
+        self.folders = []
+        
+    def resetSettings(self):
+        '''Set all settings to a default new placemark.'''
         self.inFolder = False
         self.inName = False 
-        self.inPlacemark = False
         self.inDescription = False
         self.inCoordinates = False
         self.inLatitude = False
         self.inLongitude = False
         self.inAltitude = False
+        self.inAltitudeMode = False
         self.inLocation = False
         self.inOuterBoundary = False
+        self.inInnerBoundary = False
+        self.inTimeSpan = False
+        self.inBegin = False
+        self.inEnd = False
+        self.inTimeStamp = False
+        self.inWhen = False
         self.type = 0 # 0 point, 1 location, 2 linestring, 3 Polygon
+        self.innerPoly = []
+        self.outerPoly = ""
+        self.folder = ""
         self.name = ""
-        self.folders = []
         self.description = ""
         self.coord = ""
         self.lon = ""
         self.lat = ""
         self.altitude = ""
+        self.altitudeMode = ""
+        self.begin = ""
+        self.end = ""
+        self.when = ""
         
     def startElement(self, name, attributes):
         if name == "Folder":
             self.inFolder = True
             self.name = ""
             
-        if self.inFolder and not self.inPlacemark:
+        elif self.inFolder and not self.inPlacemark:
             if name == "name":
                 self.inName = True 
                 self.name = ""
             
-        if name == "Placemark":
+        elif name == "Placemark":
             self.inPlacemark = True
-            self.inFolder = False
-            self.name = ""
-            self.folder = ""
-            self.description = ""
-            self.coord = ""
-            self.lon = ""
-            self.lat = ""
-            self.altitude = ""
+            self.resetSettings()
 
-        if self.inPlacemark:
+        elif self.inPlacemark:
             if name == "Point":
                 self.type = 0
             elif name == "Location":
@@ -142,6 +154,20 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
                 self.coord = ""
             elif name == "outerBoundaryIs":
                 self.inOuterBoundary = True
+                self.coord = ""
+            elif name == "innerBoundaryIs":
+                self.inInnerBoundary = True
+                self.coord = ""
+            elif name == "TimeSpan":
+                self.inTimeSpan = True
+            elif name == "TimeStamp":
+                self.inTimeStamp = True
+            elif name == "begin":
+                self.inBegin = True
+            elif name == "end":
+                self.inEnd = True
+            elif name == "when":
+                self.inWhen = True
             elif name == "longitude" and self.inLocation:
                 self.inLongitude = True
                 self.lon = ""
@@ -151,6 +177,9 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
             elif name == "altitude" and self.inLocation:
                 self.inAltitude = True
                 self.altitude = ""
+            elif name == "altitudeMode":
+                self.inAltitudeMode = True
+                self.altitudeMode = ""
             
     def characters(self, data):
         #print( "data: '" + data+"'")
@@ -166,6 +195,14 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
             self.lat += data
         elif self.inAltitude and self.inLocation:
             self.altitude += data
+        elif self.inBegin and self.inTimeSpan:
+            self.begin += data
+        elif self.inEnd and self.inTimeSpan:
+            self.end += data
+        elif self.inWhen and self.inTimeStamp:
+            self.when += data
+        elif self.inAltitudeMode:
+            self.altitudeMode += data
             
 
     def endElement(self, name):
@@ -180,7 +217,9 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
                 self.inCoordinates = False
                 if self.type == 3:
                     if self.inOuterBoundary:
-                        self.coord = self.coord.strip()
+                        self.outerPoly = self.coord.strip()
+                    elif self.inInnerBoundary:
+                        self.innerPoly.append(self.coord.strip())
                 else:
                     self.coord = self.coord.strip()
             elif name == "longitude" and self.inLocation:
@@ -199,15 +238,24 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
                 self.inAltitude = False
             elif name == "outerBoundaryIs":
                 self.inOuterBoundary = False
+            elif name == "innerBoundaryIs":
+                self.inInnerBoundary = False
+            elif name == "TimeSpan":
+                self.inTimeSpan = False
+            elif name == "TimeStamp":
+                self.inTimeStamp = False
+            elif name == "begin":
+                self.inBegin = False
+            elif name == "end":
+                self.inEnd = False
+            elif name == "when":
+                self.inWhen = False
+            elif name == "altitudeMode":
+                self.inAltitudeMode = False
             elif name == "Placemark":
+                self.process(self.type, self.name, self.description, self.coord, self.lon, self.lat, self.altitude, self.altitudeMode, self.begin, self.end, self.when)
                 self.inPlacemark = False
-                self.inName = False
-                self.inDescription = False
-                self.inCoordinates = False
-                self.inLongitude = False
-                self.inLatitude = False
-                self.inAltitude = False
-                self.process(self.type, self.name, self.description, self.coord, self.lon, self.lat, self.altitude)
+                self.resetSettings()
         elif name == 'Folder':
             self.inFolder = False
             if len(self.folders) > 0:
@@ -218,13 +266,6 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
                 self.inFolder = False
                 self.name = self.name.strip()
                 self.folders.append(self.name)
-        else:
-            self.inName = False
-            self.inDescription = False
-            self.inCoordinates = False
-            self.inLongitude = False
-            self.inLatitude = False
-            self.inAltitude = False
             
     def endDocument(self):
         if self.hasPts: # We found kml points so we need to end the layer
@@ -243,7 +284,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
         else:
             return("")
     
-    def process(self, type, name, desc, coord, lon, lat, altitude):
+    def process(self, type, name, desc, coord, lon, lat, altitude, alt_mode, begin, end, when):
         if type <= 1:
             if not self.hasPts:
                 self.ptLayer = QgsVectorLayer("Point?crs=epsg:4326", self.pts_name, "memory")
@@ -252,6 +293,10 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
                 f.append(QgsField("folders", QVariant.String))
                 f.append(QgsField("description", QVariant.String))
                 f.append(QgsField("altitude", QVariant.Double))
+                f.append(QgsField("alt_mode", QVariant.String))
+                f.append(QgsField("time_begin", QVariant.String))
+                f.append(QgsField("time_end", QVariant.String))
+                f.append(QgsField("time_when", QVariant.String))
                 self.ptLayer.dataProvider().addAttributes(f)
                 self.ptLayer.updateFields()
                 self.hasPts = True
@@ -274,7 +319,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
                 
             feature = QgsFeature()
             feature.setGeometry(QgsGeometry.fromPoint(QgsPoint(lon,lat)))
-            attr = [name, self.folderString(), desc, altitude]
+            attr = [name, self.folderString(), desc, altitude, alt_mode, begin, end, when]
             feature.setAttributes(attr)
             self.ptLayer.dataProvider().addFeatures([feature])
             
@@ -285,6 +330,9 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
                 f.append(QgsField("name", QVariant.String))
                 f.append(QgsField("folders", QVariant.String))
                 f.append(QgsField("description", QVariant.String))
+                f.append(QgsField("time_begin", QVariant.String))
+                f.append(QgsField("time_end", QVariant.String))
+                f.append(QgsField("time_when", QVariant.String))
                 self.lineLayer.dataProvider().addAttributes(f)
                 self.lineLayer.updateFields()
                 self.hasLine = True
@@ -293,26 +341,34 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
             
             feature = QgsFeature()
             feature.setGeometry(QgsGeometry.fromPolyline(pts))
-            attr = [name, self.folderString(), desc]
+            attr = [name, self.folderString(), desc, begin, end, when]
             feature.setAttributes(attr)
             self.lineLayer.dataProvider().addFeatures([feature])
             
         elif type == 3: #Polygon
+            pts = []
             if not self.hasPoly:
                 self.polyLayer = QgsVectorLayer("Polygon?crs=epsg:4326", self.poly_name, "memory")
                 f = QgsFields()
                 f.append(QgsField("name", QVariant.String))
                 f.append(QgsField("folders", QVariant.String))
                 f.append(QgsField("description", QVariant.String))
+                f.append(QgsField("time_begin", QVariant.String))
+                f.append(QgsField("time_end", QVariant.String))
+                f.append(QgsField("time_when", QVariant.String))
                 self.polyLayer.dataProvider().addAttributes(f)
                 self.polyLayer.updateFields()
                 self.hasPoly = True
                 
-            pts = coord2pts(coord)
+            pts.append(coord2pts(self.outerPoly))
+            if len(self.innerPoly) > 0:
+                for p in self.innerPoly:
+                    p2 = coord2pts(p)
+                    pts.append(p2)
             
             feature = QgsFeature()
-            feature.setGeometry(QgsGeometry.fromPolygon([pts]))
-            attr = [name, self.folderString(), desc]
+            feature.setGeometry(QgsGeometry.fromPolygon(pts))
+            attr = [name, self.folderString(), desc, begin, end, when]
             feature.setAttributes(attr)
             self.polyLayer.dataProvider().addFeatures([feature])
             

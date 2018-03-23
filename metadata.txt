@@ -2,7 +2,7 @@
 name=Simple KML Import
 qgisMinimumVersion=2.12
 description=Simple KML import. 
-version=0.1.0
+version=0.1.1
 author=C Hamilton
 email=adenaculture@gmail.com
 about=Import KML points, lines and polygons into single respective QGIS layers.
