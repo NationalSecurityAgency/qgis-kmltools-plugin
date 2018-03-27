@@ -21,7 +21,7 @@ from qgis.gui import QgsMessageBar
 from zipfile import ZipFile
 import xml.sax, xml.sax.handler
 import sys
-import traceback
+#import traceback
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'simplekmldialog.ui'))
@@ -62,7 +62,7 @@ class SimpleKMLDialog(QDialog, FORM_CLASS):
         try:
             parser.parse(kml)
         except:
-            traceback.print_exc()
+            #traceback.print_exc()
             self.iface.messageBar().pushMessage("", "Failure in kml - May return partial results.", level=QgsMessageBar.CRITICAL, duration=4)
             handler.endDocument()
         
@@ -380,13 +380,28 @@ def coord2pts(coords):
     
     for pt in clist:
         c = pt.split(',')
-        try:
-            lon = float(c[0])
-            lat = float(c[1])
-        except:
-            lon = 0.0
-            lat = 0.0
-        pts.append(QgsPoint(lon,lat))
+        if len(c) >= 6:
+            '''This is invalid KML syntax, but given some KMLs have been formatted
+            this way the invalid exception is looked for. There should be a space 
+            between line string coordinates. This looks for a comma between them and
+            also assumes it is formatted as lat,lon,altitude,lat,lon,altitude...'''
+            i = 0
+            while i < len(c) - 1:
+                try:
+                    lon = float(c[i])
+                    lat = float(c[i+1])
+                except:
+                    lon = 0.0
+                    lat = 0.0
+                pts.append(QgsPoint(lon,lat))
+                i += 3
+        else:
+            try:
+                lon = float(c[0])
+                lat = float(c[1])
+            except:
+                lon = 0.0
+                lat = 0.0
+            pts.append(QgsPoint(lon,lat))
         
     return(pts)
-    
