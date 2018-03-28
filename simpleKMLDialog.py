@@ -268,15 +268,15 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
                 self.folders.append(self.name)
             
     def endDocument(self):
-        if self.hasPts: # We found kml points so we need to end the layer
-            self.ptLayer.updateExtents()
-            QgsMapLayerRegistry.instance().addMapLayer(self.ptLayer)
-        if self.hasLine:
-            self.lineLayer.updateExtents()
-            QgsMapLayerRegistry.instance().addMapLayer(self.lineLayer)
         if self.hasPoly:
             self.polyLayer.updateExtents()
             QgsMapLayerRegistry.instance().addMapLayer(self.polyLayer)
+        if self.hasLine:
+            self.lineLayer.updateExtents()
+            QgsMapLayerRegistry.instance().addMapLayer(self.lineLayer)
+        if self.hasPts: # We found kml points so we need to end the layer
+            self.ptLayer.updateExtents()
+            QgsMapLayerRegistry.instance().addMapLayer(self.ptLayer)
             
     def folderString(self):
         if len(self.folders) > 0:
