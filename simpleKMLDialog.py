@@ -75,6 +75,7 @@ class SimpleKMLDialog(QDialog, FORM_CLASS):
 class PlacemarkHandler(xml.sax.handler.ContentHandler):
     def __init__(self, iface, pts_name, line_name, poly_name):
         self.iface = iface
+        self.schema = {}
         self.pts_name = pts_name
         self.line_name = line_name
         self.poly_name = poly_name
@@ -119,7 +120,27 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
         self.end = ""
         self.when = ""
         
-    def startElement(self, name, attributes):
+    def schemaBaseLookup(self, name):
+        if name in self.schema:
+            return( self.schema[name] )
+        return(name)
+        
+    def addSchema(self, name, parent):
+        parent = self.schemaBaseLookup(parent)
+        self.schema[name] = parent
+        
+    def startElement(self, name, attr):
+        if name == "Schema":
+            name = None
+            parent = None
+            for (k,v) in attr.items():
+                if k == 'name':
+                    name = v
+                if k == 'parent':
+                    parent = v
+            if name and parent:
+                self.addSchema(name, parent)
+        name = self.schemaBaseLookup(name)        
         if name == "Folder":
             self.inFolder = True
             self.name = ""
@@ -206,6 +227,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
             
 
     def endElement(self, name):
+        name = self.schemaBaseLookup(name)        
         if self.inPlacemark:
             if name == "name":
                 self.inName = False # on end title tag
