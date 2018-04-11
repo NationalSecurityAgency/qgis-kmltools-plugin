@@ -131,15 +131,15 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
         
     def startElement(self, name, attr):
         if name == "Schema":
-            name = None
-            parent = None
+            n = None
+            p = None
             for (k,v) in attr.items():
                 if k == 'name':
-                    name = v
+                    n = v
                 if k == 'parent':
-                    parent = v
-            if name and parent:
-                self.addSchema(name, parent)
+                    p = v
+            if n and p:
+                self.addSchema(n, p)
         name = self.schemaBaseLookup(name)        
         if name == "Folder":
             self.inFolder = True
