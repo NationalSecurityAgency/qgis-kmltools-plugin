@@ -1,7 +1,7 @@
 PLUGINNAME = simplekml
-PY_FILES = simplekml.py __init__.py simpleKMLDialog.py
-EXTRAS = icon.png metadata.txt
-UI_FILES = simplekmldialog.ui
+PY_FILES = simplekml.py __init__.py simpleKMLDialog.py htmlExpansionDialog.py
+EXTRAS = icon.png html.png metadata.txt
+UI_FILES = simplekmldialog.ui htmlExpansion.ui htmlFields.ui
 
 deploy: 
 	mkdir -p $(HOME)/.qgis2/python/plugins/$(PLUGINNAME)

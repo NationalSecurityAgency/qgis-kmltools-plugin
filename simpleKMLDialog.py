@@ -20,7 +20,6 @@ from qgis.core import QgsVectorLayer, QgsPoint, QgsFeature, QgsGeometry, QgsFiel
 from qgis.gui import QgsMessageBar
 from zipfile import ZipFile
 import xml.sax, xml.sax.handler
-import sys
 #import traceback
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
@@ -33,7 +32,6 @@ class SimpleKMLDialog(QDialog, FORM_CLASS):
         super(SimpleKMLDialog, self).__init__(iface.mainWindow())
         self.setupUi(self)
         self.iface = iface
-        self.canvas = iface.mapCanvas()
         
     def accept(self):
         """Called when the OK button has been pressed."""
@@ -140,7 +138,9 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
                     p = v
             if n and p:
                 self.addSchema(n, p)
-        name = self.schemaBaseLookup(name)        
+                
+        name = self.schemaBaseLookup(name)   
+        
         if name == "Folder":
             self.inFolder = True
             self.name = ""
