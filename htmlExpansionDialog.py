@@ -105,8 +105,8 @@ class HTMLExpansionDialog(QDialog, FORM_CLASS):
                     attr.append(self.tableFeatures[item])
                 else:
                     attr.append("")
-                featureout.setAttributes(feature.attributes()+attr)
-                dp.addFeatures([featureout])
+            featureout.setAttributes(feature.attributes()+attr)
+            dp.addFeatures([featureout])
                 
         newLayer.updateExtents()
         QgsMapLayerRegistry.instance().addMapLayer(newLayer)
@@ -176,13 +176,13 @@ class MyHTMLParser(HTMLParser):
         elif tag == 'th' or tag == 'td':
             self.inTD = False
             
-        def handle_data(self, data):
-            if self.inTable:
-                if self.inTD:
-                    if self.col == 0:
-                        self.buffer1 += data.strip()
-                    elif self.col == 1:
-                        self.buffer2 += data.strip()
+    def handle_data(self, data):
+        if self.inTable:
+            if self.inTD:
+                if self.col == 0:
+                    self.buffer1 += data.strip()
+                elif self.col == 1:
+                    self.buffer2 += data.strip()
                         
 class HTMLFieldSelectionDialog(QDialog, HTML_FIELDS_CLASS):
     def __init__(self, iface, feat):

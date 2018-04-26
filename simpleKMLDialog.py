@@ -136,8 +136,8 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
                     n = v
                 if k == 'parent':
                     p = v
-            if n and p:
-                self.addSchema(n, p)
+                if n and p:
+                    self.addSchema(n, p)
                 
         name = self.schemaBaseLookup(name)   
         
