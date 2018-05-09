@@ -12,11 +12,11 @@
 
 import os
 import re
-from PyQt4 import uic
-from PyQt4.QtCore import QSettings, QVariant
-from PyQt4.QtGui import QDialog
+from qgis.PyQt import uic
+from qgis.PyQt.QtCore import QSettings, QVariant
+from qgis.PyQt.QtWidgets import QDialog
 
-from qgis.core import QgsVectorLayer, QgsPoint, QgsFeature, QgsGeometry, QgsFields, QgsField, QgsMapLayerRegistry
+from qgis.core import Qgis, QgsVectorLayer, QgsPointXY, QgsFeature, QgsGeometry, QgsFields, QgsField, QgsProject
 from qgis.gui import QgsMessageBar
 from zipfile import ZipFile
 import xml.sax, xml.sax.handler
@@ -46,22 +46,25 @@ class SimpleKMLDialog(QDialog, FORM_CLASS):
                 kmz = ZipFile(fp, 'r')
                 kml = kmz.open('doc.kml', 'r')
             elif extension == '.kml':
-                kml = open(fp, 'r')
+                kml = open(fp, 'rb')
             else:
-                self.iface.messageBar().pushMessage("", "Invalid extension: Should be kml or kmz", level=QgsMessageBar.WARNING, duration=4)
+                self.iface.messageBar().pushMessage("", "Invalid extension: Should be kml or kmz", level=Qgis.Warning, duration=4)
                 return
         except:
-            self.iface.messageBar().pushMessage("", "Failed to open file", level=QgsMessageBar.WARNING, duration=4)
+            self.iface.messageBar().pushMessage("", "Failed to open file", level=Qgis.Warning, duration=4)
             return
         
         parser = xml.sax.make_parser()
         handler = PlacemarkHandler(self.iface, pts_name, line_name, poly_name)
         parser.setContentHandler(handler)
         try:
-            parser.parse(kml)
+            input_source = xml.sax.xmlreader.InputSource()
+            input_source.setByteStream(kml)
+            input_source.setEncoding('utf-8')
+            parser.parse(input_source)
         except:
             #traceback.print_exc()
-            self.iface.messageBar().pushMessage("", "Failure in kml - May return partial results.", level=QgsMessageBar.CRITICAL, duration=4)
+            self.iface.messageBar().pushMessage("", "Failure in kml - May return partial results.", level=Qgis.Critical, duration=4)
             handler.endDocument()
         
         if extension == 'kmz':
@@ -131,7 +134,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
         if name == "Schema":
             n = None
             p = None
-            for (k,v) in attr.items():
+            for (k,v) in list(attr.items()):
                 if k == 'name':
                     n = v
                 if k == 'parent':
@@ -292,13 +295,13 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
     def endDocument(self):
         if self.hasPoly:
             self.polyLayer.updateExtents()
-            QgsMapLayerRegistry.instance().addMapLayer(self.polyLayer)
+            QgsProject.instance().addMapLayer(self.polyLayer)
         if self.hasLine:
             self.lineLayer.updateExtents()
-            QgsMapLayerRegistry.instance().addMapLayer(self.lineLayer)
+            QgsProject.instance().addMapLayer(self.lineLayer)
         if self.hasPts: # We found kml points so we need to end the layer
             self.ptLayer.updateExtents()
-            QgsMapLayerRegistry.instance().addMapLayer(self.ptLayer)
+            QgsProject.instance().addMapLayer(self.ptLayer)
             
     def folderString(self):
         if len(self.folders) > 0:
@@ -340,7 +343,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
                 altitude = float(altitude)
                 
             feature = QgsFeature()
-            feature.setGeometry(QgsGeometry.fromPoint(QgsPoint(lon,lat)))
+            feature.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(lon,lat)))
             attr = [name, self.folderString(), desc, altitude, alt_mode, begin, end, when]
             feature.setAttributes(attr)
             self.ptLayer.dataProvider().addFeatures([feature])
@@ -362,7 +365,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
             pts = coord2pts(coord)
             
             feature = QgsFeature()
-            feature.setGeometry(QgsGeometry.fromPolyline(pts))
+            feature.setGeometry(QgsGeometry.fromPolylineXY(pts))
             attr = [name, self.folderString(), desc, begin, end, when]
             feature.setAttributes(attr)
             self.lineLayer.dataProvider().addFeatures([feature])
@@ -389,7 +392,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
                     pts.append(p2)
             
             feature = QgsFeature()
-            feature.setGeometry(QgsGeometry.fromPolygon(pts))
+            feature.setGeometry(QgsGeometry.fromPolygonXY(pts))
             attr = [name, self.folderString(), desc, begin, end, when]
             feature.setAttributes(attr)
             self.polyLayer.dataProvider().addFeatures([feature])
@@ -415,7 +418,7 @@ def coord2pts(coords):
                 except:
                     lon = 0.0
                     lat = 0.0
-                pts.append(QgsPoint(lon,lat))
+                pts.append(QgsPointXY(lon,lat))
                 i += 3
         else:
             try:
@@ -424,6 +427,6 @@ def coord2pts(coords):
             except:
                 lon = 0.0
                 lat = 0.0
-            pts.append(QgsPoint(lon,lat))
+            pts.append(QgsPointXY(lon,lat))
         
     return(pts)

@@ -1,8 +1,8 @@
 [general]
 name=KML Tools
-qgisMinimumVersion=2.12
+qgisMinimumVersion=3.0
 description=A simple but important KML/KMZ importer
-version=0.1.6
+version=3.0
 author=C Hamilton
 email=adenaculture@gmail.com
 about=The native QGIS KML importer creates separate layers for each folder within a KML. If there are hundreds of layers, the import can be very slow or can crash QGIS. This plugin only creates one point layer, one line layer, and one polygon layer. It adds the nested folder structure to a field in the QGIS layer. This makes the KML/KMZ import very quick.

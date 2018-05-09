@@ -12,13 +12,14 @@
 
 import os
 import re
-from PyQt4 import uic
-from PyQt4.QtCore import QSettings, QVariant, Qt
-from PyQt4.QtGui import QDialog, QStandardItemModel, QStandardItem
+from qgis.PyQt import uic
+from qgis.PyQt.QtCore import QSettings, QVariant, Qt
+from qgis.PyQt.QtWidgets import QDialog
+from qgis.PyQt.QtGui import QStandardItemModel, QStandardItem
 
-from qgis.core import QgsVectorLayer, QgsPoint, QgsFeature, QgsGeometry, QgsFields, QgsField, QgsMapLayerRegistry, QGis
-from qgis.gui import QgsMessageBar, QgsMapLayerProxyModel
-from HTMLParser import HTMLParser
+from qgis.core import Qgis, QgsVectorLayer, QgsFeature, QgsFields, QgsField, QgsWkbTypes, QgsMapLayerProxyModel, QgsProject
+from qgis.gui import QgsMessageBar
+from html.parser import HTMLParser
 #import traceback
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
@@ -51,16 +52,16 @@ class HTMLExpansionDialog(QDialog, FORM_CLASS):
         self.tableFeatures = {}
         wkbtype = layer.wkbType()
         layercrs = layer.crs()
-        if wkbtype != QGis.WKBLineString and wkbtype != QGis.WKBPolygon and wkbtype != QGis.WKBPoint:
-            self.iface.messageBar().pushMessage("", "Invalid input layer type", level=QgsMessageBar.WARNING, duration=3)
+        if wkbtype != QgsWkbTypes.LineString and wkbtype != QgsWkbTypes.Polygon and wkbtype != QgsWkbTypes.Point:
+            self.iface.messageBar().pushMessage("", "Invalid input layer type", level=Qgis.Warning, duration=3)
             return
             
         htmlparser = MyHTMLParser(self.tableFeatures)
         # Find all the possible fields in the description area
         field = self.descriptionComboBox.currentField()
-        index = layer.fieldNameIndex(field)
+        index = layer.fields().indexFromName(field)
         if index == -1:
-            self.iface.messageBar().pushMessage("", "Invalid field name", level=QgsMessageBar.WARNING, duration=3)
+            self.iface.messageBar().pushMessage("", "Invalid field name", level=Qgis.Warning, duration=3)
             return
         
         iterator = layer.getFeatures()
@@ -70,7 +71,7 @@ class HTMLExpansionDialog(QDialog, FORM_CLASS):
             htmlparser.feed(desc)
             htmlparser.close()
         if len(self.tableFeatures) == 0:
-            self.iface.messageBar().pushMessage("", "No HTML tables were found.", level=QgsMessageBar.WARNING, duration=3)
+            self.iface.messageBar().pushMessage("", "No HTML tables were found.", level=Qgis.Warning, duration=3)
             return
         
         fieldsDialog = HTMLFieldSelectionDialog(self.iface, self.tableFeatures)
@@ -81,11 +82,11 @@ class HTMLExpansionDialog(QDialog, FORM_CLASS):
         fieldsout = QgsFields(fields)
         for item in items:
             fieldsout.append(QgsField(item, QVariant.String))
-        if wkbtype == QGis.WKBLineString:
+        if wkbtype == QgsWkbTypes.LineString:
             newLayer = QgsVectorLayer("LineString?crs={}".format(layercrs.authid()), newlayername, "memory")
-        elif wkbtype == QGis.WKBPolygon:
+        elif wkbtype == QgsWkbTypes.Polygon:
             newLayer = QgsVectorLayer("Polygon?crs={}".format(layercrs.authid()), newlayername, "memory")
-        elif wkbtype == QGis.WKBPoint:
+        elif wkbtype == QgsWkbTypes.Point:
             newLayer = QgsVectorLayer("Point?crs={}".format(layercrs.authid()), newlayername, "memory")
         dp = newLayer.dataProvider()
         dp.addAttributes(fieldsout)
@@ -109,7 +110,7 @@ class HTMLExpansionDialog(QDialog, FORM_CLASS):
             dp.addFeatures([featureout])
                 
         newLayer.updateExtents()
-        QgsMapLayerRegistry.instance().addMapLayer(newLayer)
+        QgsProject.instance().addMapLayer(newLayer)
         self.close()
         
     def layerChanged(self):
@@ -199,7 +200,7 @@ class HTMLFieldSelectionDialog(QDialog, HTML_FIELDS_CLASS):
     def initModel(self):
         self.model = QStandardItemModel(self.listView)
         state = self.checkBox.isChecked()
-        for key in self.feat.keys():
+        for key in list(self.feat.keys()):
             if state == False or self.feat[key] > 0:
                 item = QStandardItem()
                 item.setText(key)

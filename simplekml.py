@@ -17,13 +17,14 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt4.QtGui import QIcon, QAction
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtWidgets import QAction
 
 import os
 from .simpleKMLDialog import SimpleKMLDialog
 from .htmlExpansionDialog import HTMLExpansionDialog
 
-class SimpleKML:
+class SimpleKML(object):
     def __init__(self, iface):
         self.iface = iface
         self.dialog = None
