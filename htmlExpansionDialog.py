@@ -25,7 +25,6 @@ FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'htmlExpansion.ui'))
 HTML_FIELDS_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'htmlFields.ui'))
-
         
 class HTMLExpansionDialog(QDialog, FORM_CLASS):
     def __init__(self, iface):
