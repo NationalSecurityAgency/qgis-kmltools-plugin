@@ -13,12 +13,18 @@
 import os
 import re
 from qgis.PyQt import uic
-from qgis.PyQt.QtCore import QSettings, QVariant, Qt
+from qgis.PyQt.QtCore import QObject, QSettings, QVariant, Qt, QUrl, QCoreApplication, pyqtSignal, pyqtSlot
 from qgis.PyQt.QtWidgets import QDialog
-from qgis.PyQt.QtGui import QStandardItemModel, QStandardItem
+from qgis.PyQt.QtGui import QStandardItemModel, QStandardItem, QIcon
 
 from qgis.core import Qgis, QgsVectorLayer, QgsFeature, QgsFields, QgsField, QgsWkbTypes, QgsMapLayerProxyModel, QgsProject
-from qgis.gui import QgsMessageBar
+
+from qgis.core import (QgsProcessing,
+    QgsProcessingAlgorithm,
+    QgsProcessingParameterFeatureSource,
+    QgsProcessingParameterField,
+    QgsProcessingParameterFeatureSink)
+
 from html.parser import HTMLParser
 #import traceback
 
@@ -27,7 +33,135 @@ FORM_CLASS, _ = uic.loadUiType(os.path.join(
 HTML_FIELDS_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'htmlFields.ui'))
 
+def tr(string):
+    return QCoreApplication.translate('Processing', string)
+
+class HTMLExpansionProcess(QObject):
+    addFeature = pyqtSignal(QgsFeature)
+    def __init__(self, source, descField):
+        QObject.__init__(self)
+        self.source = source
+        self.descField = descField
+        self.htmlparser = MyHTMLParser()
+        self.selected = []
         
+    def autoGenerateFileds(self):
+        iterator = self.source.getFeatures()
+        self.htmlparser.setMode(0)
+        for feature in iterator:
+            desc = "{}".format(feature[self.descField])
+            self.htmlparser.feed(desc)
+            self.htmlparser.close()
+        self.selected = self.htmlparser.fieldList()
+
+    def setSelectedFields(self, selected):
+        self.selected = list(selected)
+        
+    def selectedFields(self):
+        return self.selected
+        
+    def fields(self):
+        return self.htmlparser.fields()
+        
+    def processSource(self):
+        self.htmlparser.setMode(1)
+        iterator = self.source.getFeatures()
+        tableFields = self.htmlparser.fields()
+        for feature in iterator:
+            desc = "{}".format(feature[self.descField])
+            self.htmlparser.clearData()
+            self.htmlparser.feed(desc)
+            self.htmlparser.close()
+            featureout = QgsFeature()
+            featureout.setGeometry(feature.geometry())
+            attr = []
+            for item in self.selected:
+                if item in tableFields:
+                    attr.append(tableFields[item])
+                else:
+                    attr.append("")
+            featureout.setAttributes(feature.attributes()+attr)
+            self.addFeature.emit(featureout)        
+        
+    
+        
+class HTMLExpansionAlgorithm(QgsProcessingAlgorithm):
+    """
+    Algorithm to import KML and KMZ files.
+    """
+    PrmInputLayer = 'InputLayer'
+    PrmDescriptionField = 'DescriptionField'
+    PrmOutputLayer = 'OutputLayer'
+    
+    def initAlgorithm(self, config):
+        self.addParameter(
+            QgsProcessingParameterFeatureSource(
+                self.PrmInputLayer,
+                tr('Input layer'),
+                [QgsProcessing.TypeVector])
+        )
+        self.addParameter(
+            QgsProcessingParameterField(
+                self.PrmDescriptionField,
+                tr('Description field'),
+                defaultValue='description',
+                parentLayerParameterName=self.PrmInputLayer,
+                type=QgsProcessingParameterField.String
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                self.PrmOutputLayer,
+                tr('Output layer'))
+            )
+    
+    def processAlgorithm(self, parameters, context, feedback):
+        source = self.parameterAsSource(parameters, self.PrmInputLayer, context)
+        field = self.parameterAsString(parameters, self.PrmDescriptionField, context)
+        if not field:
+            msg = tr('Must have a valid description field')
+            feedback.reportError(msg)
+            raise QgsProcessingException(msg)
+        
+        self.htmlProcessor = HTMLExpansionProcess(source, field)
+        self.htmlProcessor.addFeature.connect(self.addFeature)
+        self.htmlProcessor.autoGenerateFileds()
+        
+        srcCRS = source.sourceCrs()
+        wkbtype = source.wkbType()
+        
+        fieldsout = QgsFields(source.fields())
+        for item in self.htmlProcessor.selectedFields():
+            fieldsout.append(QgsField(item, QVariant.String))
+            
+        (self.sink, dest_id) = self.parameterAsSink(parameters,
+                self.PrmOutputLayer, context, fieldsout, wkbtype, srcCRS)
+                
+        self.htmlProcessor.processSource()
+        self.htmlProcessor.addFeature.disconnect(self.addFeature)
+        return {self.PrmOutputLayer: dest_id}
+        
+    def addFeature(self, f):
+        self.sink.addFeature(f)
+        
+    def name(self):
+        return 'htmlexpansion'
+
+    def icon(self):
+        return QIcon(os.path.dirname(__file__) + '/html.png')
+    
+    def displayName(self):
+        return tr('Expand HTML description table')
+    
+    def group(self):
+        return tr('Vector conversion')
+        
+    def groupId(self):
+        return 'vectorconversion'
+        
+    def createInstance(self):
+        return HTMLExpansionAlgorithm()
+
 class HTMLExpansionDialog(QDialog, FORM_CLASS):
     def __init__(self, iface):
         """Initialize the QGIS Simple KML inport dialog window."""
@@ -36,7 +170,6 @@ class HTMLExpansionDialog(QDialog, FORM_CLASS):
         self.iface = iface
         self.inputLayerComboBox.setFilters(QgsMapLayerProxyModel.VectorLayer)
         self.inputLayerComboBox.layerChanged.connect(self.layerChanged)
-        self.tableFeatures = {}
         
     def showEvent(self, event):
         '''The dialog is being shown. We need to initialize it.'''
@@ -48,15 +181,8 @@ class HTMLExpansionDialog(QDialog, FORM_CLASS):
         layer = self.inputLayerComboBox.currentLayer()
         if not layer:
             return
-        newlayername = self.outputLayerLineEdit.text()
-        self.tableFeatures = {}
-        wkbtype = layer.wkbType()
-        layercrs = layer.crs()
-        if wkbtype != QgsWkbTypes.LineString and wkbtype != QgsWkbTypes.Polygon and wkbtype != QgsWkbTypes.Point:
-            self.iface.messageBar().pushMessage("", "Invalid input layer type", level=Qgis.Warning, duration=3)
-            return
+        newlayername = self.outputLayerLineEdit.text().strip()
             
-        htmlparser = MyHTMLParser(self.tableFeatures)
         # Find all the possible fields in the description area
         field = self.descriptionComboBox.currentField()
         index = layer.fields().indexFromName(field)
@@ -64,54 +190,35 @@ class HTMLExpansionDialog(QDialog, FORM_CLASS):
             self.iface.messageBar().pushMessage("", "Invalid field name", level=Qgis.Warning, duration=3)
             return
         
-        iterator = layer.getFeatures()
-        htmlparser.setMode(0)
-        for feature in iterator:
-            desc = "{}".format(feature[index])
-            htmlparser.feed(desc)
-            htmlparser.close()
-        if len(self.tableFeatures) == 0:
-            self.iface.messageBar().pushMessage("", "No HTML tables were found.", level=Qgis.Warning, duration=3)
-            return
+        self.htmlProcessor = HTMLExpansionProcess(layer, field)
+        self.htmlProcessor.addFeature.connect(self.addFeature)
+        self.htmlProcessor.autoGenerateFileds()
         
-        fieldsDialog = HTMLFieldSelectionDialog(self.iface, self.tableFeatures)
+        fieldsDialog = HTMLFieldSelectionDialog(self.iface, self.htmlProcessor.fields())
         fieldsDialog.exec_()
-        items = fieldsDialog.selected
+        self.htmlProcessor.setSelectedFields(fieldsDialog.selected)
         
-        fields = layer.fields()
-        fieldsout = QgsFields(fields)
-        for item in items:
+        
+        wkbtype = layer.wkbType()
+        layercrs = layer.crs()
+        fieldsout = QgsFields(layer.fields())
+        for item in self.htmlProcessor.selectedFields():
             fieldsout.append(QgsField(item, QVariant.String))
-        if wkbtype == QgsWkbTypes.LineString:
-            newLayer = QgsVectorLayer("LineString?crs={}".format(layercrs.authid()), newlayername, "memory")
-        elif wkbtype == QgsWkbTypes.Polygon:
-            newLayer = QgsVectorLayer("Polygon?crs={}".format(layercrs.authid()), newlayername, "memory")
-        elif wkbtype == QgsWkbTypes.Point:
-            newLayer = QgsVectorLayer("Point?crs={}".format(layercrs.authid()), newlayername, "memory")
-        dp = newLayer.dataProvider()
-        dp.addAttributes(fieldsout)
+        newLayer = QgsVectorLayer("{}?crs={}".format(QgsWkbTypes.displayString(wkbtype), layercrs.authid()), newlayername, "memory")
+        
+        self.dp = newLayer.dataProvider()
+        self.dp.addAttributes(fieldsout)
         newLayer.updateFields()
-        iterator = layer.getFeatures()
-        htmlparser.setMode(1)
-        for feature in iterator:
-            desc = "{}".format(feature[index])
-            htmlparser.clearData()
-            htmlparser.feed(desc)
-            htmlparser.close()
-            featureout = QgsFeature()
-            featureout.setGeometry(feature.geometry())
-            attr = []
-            for item in items:
-                if item in self.tableFeatures:
-                    attr.append(self.tableFeatures[item])
-                else:
-                    attr.append("")
-            featureout.setAttributes(feature.attributes()+attr)
-            dp.addFeatures([featureout])
+        
+        self.htmlProcessor.processSource()
+        self.htmlProcessor.addFeature.disconnect(self.addFeature)
                 
         newLayer.updateExtents()
         QgsProject.instance().addMapLayer(newLayer)
         self.close()
+        
+    def addFeature(self, f):
+        self.dp.addFeatures([f])
         
     def layerChanged(self):
         if not self.isVisible():
@@ -120,12 +227,12 @@ class HTMLExpansionDialog(QDialog, FORM_CLASS):
         self.descriptionComboBox.setLayer(layer)
         if layer:
             self.descriptionComboBox.setField('description')
-            
+
 class MyHTMLParser(HTMLParser):
-    def __init__(self, feat):
+    def __init__(self):
         # initialize the base class
         HTMLParser.__init__(self)
-        self.tableFeatures = feat
+        self.tableFields = {}
         self.inTable = False
         self.inTR = False
         self.inTD = False
@@ -136,10 +243,17 @@ class MyHTMLParser(HTMLParser):
         self.mode = 0
         
     def clearData(self):
-        self.tableFeatures.clear()
+        self.tableFields.clear()
         
     def setMode(self, mode):
         self.mode = mode
+        self.clearData()
+        
+    def fieldList(self):
+        return [*self.tableFields]
+        
+    def fields(self):
+        return self.tableFields
         
     def handle_starttag(self, tag, attrs):
         tag = tag.lower()
@@ -160,16 +274,16 @@ class MyHTMLParser(HTMLParser):
             self.inTable = False
         elif tag == 'tr':
             if self.mode == 0:
-                if self.buffer1 in self.tableFeatures:
+                if self.buffer1 in self.tableFields:
                     if self.buffer2 != '':
-                        self.tableFeatures[self.buffer1] += 1
+                        self.tableFields[self.buffer1] += 1
                 else:
                     if self.buffer2 != '':
-                        self.tableFeatures[self.buffer1] = 1
+                        self.tableFields[self.buffer1] = 1
                     else:
-                        self.tableFeatures[self.buffer1] = 0
+                        self.tableFields[self.buffer1] = 0
             else:
-                self.tableFeatures[self.buffer1] = self.buffer2
+                self.tableFields[self.buffer1] = self.buffer2
             
             self.col = -1
             self.inTR = False

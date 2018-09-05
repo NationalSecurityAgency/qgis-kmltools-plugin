@@ -12,50 +12,106 @@
 
 import os
 import re
-from qgis.PyQt import uic
-from qgis.PyQt.QtCore import QSettings, QVariant
-from qgis.PyQt.QtWidgets import QDialog
+from qgis.PyQt.QtCore import QVariant, QCoreApplication
+from qgis.PyQt.QtGui import QIcon
 
-from qgis.core import Qgis, QgsVectorLayer, QgsPointXY, QgsFeature, QgsGeometry, QgsFields, QgsField, QgsProject
-from qgis.gui import QgsMessageBar
+from qgis.core import QgsCoordinateReferenceSystem, QgsPointXY, QgsFeature, QgsGeometry, QgsFields, QgsField, QgsWkbTypes
+
+from qgis.core import (QgsProcessing,
+    QgsProcessingAlgorithm,
+    QgsProcessingParameterFile,
+    QgsProcessingParameterFeatureSink)
+
 from zipfile import ZipFile
 import xml.sax, xml.sax.handler
 #import traceback
 
-FORM_CLASS, _ = uic.loadUiType(os.path.join(
-    os.path.dirname(__file__), 'simplekmldialog.ui'))
+def tr(string):
+    return QCoreApplication.translate('Processing', string)
 
         
-class SimpleKMLDialog(QDialog, FORM_CLASS):
-    def __init__(self, iface):
-        """Initialize the QGIS Simple KML inport dialog window."""
-        super(SimpleKMLDialog, self).__init__(iface.mainWindow())
-        self.setupUi(self)
-        self.iface = iface
-        
-    def accept(self):
-        """Called when the OK button has been pressed."""
-        pts_name = self.pointsLineEdit.text().strip()
-        line_name = self.linesLineEdit.text().strip()
-        poly_name = self.polyLineEdit.text().strip()
-        fp = self.fileWidget.filePath()
-        filename, extension = os.path.splitext(fp)
+class ImportKmlAlgorithm(QgsProcessingAlgorithm):
+    """
+    Algorithm to import KML and KMZ files.
+    """
+    PrmInput = 'Input'
+    PrmPointOutputLayer = 'PointOutputLayer'
+    PrmLineOutputLayer = 'LineOutputLayer'
+    PrmPolygonOutputLayer = 'PolygonOutputLayer'
+    
+    def initAlgorithm(self, config):
+        self.addParameter(
+            QgsProcessingParameterFile(
+                self.PrmInput,
+                tr('Import KML/KMZ file'))
+        )
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                self.PrmPointOutputLayer,
+                tr('Output point layer'),
+                optional=True)
+            )
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                self.PrmLineOutputLayer,
+                tr('Output line layer'),
+                optional=True)
+            )
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                self.PrmPolygonOutputLayer,
+                tr('Output polygon layer'),
+                optional=True)
+            )
+    
+    def processAlgorithm(self, parameters, context, feedback):
+        filename = self.parameterAsFile(parameters, self.PrmInput, context)
+        f, extension = os.path.splitext(filename)
         extension = extension.lower()
         try:
             if extension == '.kmz':
-                kmz = ZipFile(fp, 'r')
+                kmz = ZipFile(filename, 'r')
                 kml = kmz.open('doc.kml', 'r')
             elif extension == '.kml':
-                kml = open(fp, 'rb')
+                kml = open(filename, 'rb')
             else:
-                self.iface.messageBar().pushMessage("", "Invalid extension: Should be kml or kmz", level=Qgis.Warning, duration=4)
-                return
+                msg = "Invalid extension: Should be kml or kmz"
+                feedback.reportError(msg)
+                raise QgsProcessingException(msg)
         except:
-            self.iface.messageBar().pushMessage("", "Failed to open file", level=Qgis.Warning, duration=4)
-            return
+            msg = "Failed to open file"
+            feedback.reportError(msg)
+            raise QgsProcessingException(msg)
+            
+        epsg4326 = QgsCoordinateReferenceSystem("EPSG:4326")
+        f = QgsFields()
+        f.append(QgsField("name", QVariant.String))
+        f.append(QgsField("folders", QVariant.String))
+        f.append(QgsField("description", QVariant.String))
+        f.append(QgsField("altitude", QVariant.Double))
+        f.append(QgsField("alt_mode", QVariant.String))
+        f.append(QgsField("time_begin", QVariant.String))
+        f.append(QgsField("time_end", QVariant.String))
+        f.append(QgsField("time_when", QVariant.String))
+        (sinkPt, dest_id_pt) = self.parameterAsSink(parameters,
+            self.PrmPointOutputLayer, context, f,
+            QgsWkbTypes.Point, epsg4326)
+        f = QgsFields()
+        f.append(QgsField("name", QVariant.String))
+        f.append(QgsField("folders", QVariant.String))
+        f.append(QgsField("description", QVariant.String))
+        f.append(QgsField("time_begin", QVariant.String))
+        f.append(QgsField("time_end", QVariant.String))
+        f.append(QgsField("time_when", QVariant.String))
+        (sinkLine, dest_id_line) = self.parameterAsSink(parameters,
+            self.PrmLineOutputLayer, context, f,
+            QgsWkbTypes.LineString, epsg4326)
+        (sinkPoly, dest_id_poly) = self.parameterAsSink(parameters,
+            self.PrmPolygonOutputLayer, context, f,
+            QgsWkbTypes.Polygon, epsg4326)
         
         parser = xml.sax.make_parser()
-        handler = PlacemarkHandler(self.iface, pts_name, line_name, poly_name)
+        handler = PlacemarkHandler(sinkPt, sinkLine, sinkPoly)
         parser.setContentHandler(handler)
         try:
             input_source = xml.sax.xmlreader.InputSource()
@@ -64,25 +120,56 @@ class SimpleKMLDialog(QDialog, FORM_CLASS):
             parser.parse(input_source)
         except:
             #traceback.print_exc()
-            self.iface.messageBar().pushMessage("", "Failure in kml - May return partial results.", level=Qgis.Critical, duration=4)
+            feedback.pushInfo(tr('Failure in kml extraction - May return partial results.'))
             handler.endDocument()
         
         if extension == 'kmz':
             kmz.close()
         else:
             kml.close()
-        self.close()
+            
+        feedback.pushInfo('{} points extracted'.format(handler.cntPt))
+        feedback.pushInfo('{} lines extracted'.format(handler.cntLine))
+        feedback.pushInfo('{} polygons extracted'.format(handler.cntPoly))
+        
+        r = {}
+        if handler.cntPt > 0:
+            r[self.PrmPointOutputLayer] = dest_id_pt
+        if handler.cntLine > 0:
+            r[self.PrmLineOutputLayer] = dest_id_line
+        if handler.cntPoly > 0:
+            r[self.PrmPolygonOutputLayer] = dest_id_poly
+
+        return (r)
+        
+    def name(self):
+        return 'importkml'
+
+    def icon(self):
+        return QIcon(os.path.dirname(__file__) + '/icon.png')
+    
+    def displayName(self):
+        return tr('Import KML/KMZ')
+    
+    def group(self):
+        return tr('Vector conversion')
+        
+    def groupId(self):
+        return 'vectorconversion'
+        
+    def createInstance(self):
+        return ImportKmlAlgorithm()
+
 
 class PlacemarkHandler(xml.sax.handler.ContentHandler):
-    def __init__(self, iface, pts_name, line_name, poly_name):
-        self.iface = iface
+    def __init__(self, sinkPt, sinkLine, sinkPoly):
         self.schema = {}
-        self.pts_name = pts_name
-        self.line_name = line_name
-        self.poly_name = poly_name
-        self.hasPts = False
-        self.hasLine = False
-        self.hasPoly = False
+        self.sinkPt = sinkPt
+        self.sinkLine = sinkLine
+        self.sinkPoly = sinkPoly
+        self.cntPt = 0
+        self.cntLine = 0
+        self.cntPoly =  0
         
         self.inPlacemark = False
         self.resetSettings()
@@ -292,17 +379,6 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
                 self.name = self.name.strip()
                 self.folders.append(self.name)
             
-    def endDocument(self):
-        if self.hasPoly:
-            self.polyLayer.updateExtents()
-            QgsProject.instance().addMapLayer(self.polyLayer)
-        if self.hasLine:
-            self.lineLayer.updateExtents()
-            QgsProject.instance().addMapLayer(self.lineLayer)
-        if self.hasPts: # We found kml points so we need to end the layer
-            self.ptLayer.updateExtents()
-            QgsProject.instance().addMapLayer(self.ptLayer)
-            
     def folderString(self):
         if len(self.folders) > 0:
             return(u"; ".join(self.folders))
@@ -311,20 +387,8 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
     
     def process(self, type, name, desc, coord, lon, lat, altitude, alt_mode, begin, end, when):
         if type <= 1:
-            if not self.hasPts:
-                self.ptLayer = QgsVectorLayer("Point?crs=epsg:4326", self.pts_name, "memory")
-                f = QgsFields()
-                f.append(QgsField("name", QVariant.String))
-                f.append(QgsField("folders", QVariant.String))
-                f.append(QgsField("description", QVariant.String))
-                f.append(QgsField("altitude", QVariant.Double))
-                f.append(QgsField("alt_mode", QVariant.String))
-                f.append(QgsField("time_begin", QVariant.String))
-                f.append(QgsField("time_end", QVariant.String))
-                f.append(QgsField("time_when", QVariant.String))
-                self.ptLayer.dataProvider().addAttributes(f)
-                self.ptLayer.updateFields()
-                self.hasPts = True
+            if not self.sinkPt:
+                return
             if type == 0:
                 c = coord.split(',')
                 lat = 0.0
@@ -346,45 +410,25 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
             feature.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(lon,lat)))
             attr = [name, self.folderString(), desc, altitude, alt_mode, begin, end, when]
             feature.setAttributes(attr)
-            self.ptLayer.dataProvider().addFeatures([feature])
+            self.sinkPt.addFeature(feature)
+            self.cntPt += 1
             
         elif type == 2: #LineString
-            if not self.hasLine:
-                self.lineLayer = QgsVectorLayer("LineString?crs=epsg:4326", self.line_name, "memory")
-                f = QgsFields()
-                f.append(QgsField("name", QVariant.String))
-                f.append(QgsField("folders", QVariant.String))
-                f.append(QgsField("description", QVariant.String))
-                f.append(QgsField("time_begin", QVariant.String))
-                f.append(QgsField("time_end", QVariant.String))
-                f.append(QgsField("time_when", QVariant.String))
-                self.lineLayer.dataProvider().addAttributes(f)
-                self.lineLayer.updateFields()
-                self.hasLine = True
-                
+            if not self.sinkLine:
+                return
             pts = coord2pts(coord)
             
             feature = QgsFeature()
             feature.setGeometry(QgsGeometry.fromPolylineXY(pts))
             attr = [name, self.folderString(), desc, begin, end, when]
             feature.setAttributes(attr)
-            self.lineLayer.dataProvider().addFeatures([feature])
+            self.sinkLine.addFeature(feature)
+            self.cntLine += 1
             
         elif type == 3: #Polygon
+            if not self.sinkPoly:
+                return
             pts = []
-            if not self.hasPoly:
-                self.polyLayer = QgsVectorLayer("Polygon?crs=epsg:4326", self.poly_name, "memory")
-                f = QgsFields()
-                f.append(QgsField("name", QVariant.String))
-                f.append(QgsField("folders", QVariant.String))
-                f.append(QgsField("description", QVariant.String))
-                f.append(QgsField("time_begin", QVariant.String))
-                f.append(QgsField("time_end", QVariant.String))
-                f.append(QgsField("time_when", QVariant.String))
-                self.polyLayer.dataProvider().addAttributes(f)
-                self.polyLayer.updateFields()
-                self.hasPoly = True
-                
             pts.append(coord2pts(self.outerPoly))
             if len(self.innerPoly) > 0:
                 for p in self.innerPoly:
@@ -395,7 +439,8 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
             feature.setGeometry(QgsGeometry.fromPolygonXY(pts))
             attr = [name, self.folderString(), desc, begin, end, when]
             feature.setAttributes(attr)
-            self.polyLayer.dataProvider().addFeatures([feature])
+            self.sinkPoly.addFeature(feature)
+            self.cntPoly += 1
             
             
 def coord2pts(coords):

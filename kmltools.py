@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 /***************************************************************************
- SimpleKML
+ KMLTools
     A QGIS plugin for importing KML into simple points, lines, and polygons.
     It ignores KML styling.
                               -------------------
@@ -19,45 +19,49 @@
 """
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
+from qgis.core import QgsApplication
+import processing
 
 import os
-from .simpleKMLDialog import SimpleKMLDialog
+from .provider import KmlToolsProvider
 from .htmlExpansionDialog import HTMLExpansionDialog
 
-class SimpleKML(object):
+class KMLTools(object):
     def __init__(self, iface):
         self.iface = iface
-        self.dialog = None
         self.htmlDialog = None
+        self.provider = KmlToolsProvider()        
 
     def initGui(self):
         """Create the menu & tool bar items within QGIS"""
         icon = QIcon(os.path.dirname(__file__) + "/icon.png")
-        self.kmlAction = QAction(icon, u"Simple KML Importer", self.iface.mainWindow())
+        self.kmlAction = QAction(icon, "Simple KML Importer", self.iface.mainWindow())
         self.kmlAction.triggered.connect(self.showDialog)
         self.kmlAction.setCheckable(False)
         self.iface.addToolBarIcon(self.kmlAction)
-        self.iface.addPluginToVectorMenu(u"KML Tools", self.kmlAction)
+        self.iface.addPluginToVectorMenu("KML Tools", self.kmlAction)
         # Expansion of HTML description field
         icon = QIcon(os.path.dirname(__file__) + "/html.png")
-        self.htmlDescAction = QAction(icon, u"Expand HTML Description Field", self.iface.mainWindow())
+        self.htmlDescAction = QAction(icon, "Expand HTML Description Field", self.iface.mainWindow())
         self.htmlDescAction.triggered.connect(self.htmlDescDialog)
         self.htmlDescAction.setCheckable(False)
         self.iface.addToolBarIcon(self.htmlDescAction)
-        self.iface.addPluginToVectorMenu(u"KML Tools", self.htmlDescAction)
+        self.iface.addPluginToVectorMenu("KML Tools", self.htmlDescAction)
+        
+        # Add the processing provider
+        QgsApplication.processingRegistry().addProvider(self.provider)
 
     def unload(self):
         """Remove the plugin menu item and icon from QGIS GUI."""
-        self.iface.removePluginVectorMenu(u"KML Tools", self.kmlAction)
-        self.iface.removePluginVectorMenu(u"KML Tools", self.htmlDescAction)
+        self.iface.removePluginVectorMenu("KML Tools", self.kmlAction)
+        self.iface.removePluginVectorMenu("KML Tools", self.htmlDescAction)
         self.iface.removeToolBarIcon(self.kmlAction)
         self.iface.removeToolBarIcon(self.htmlDescAction)
+        QgsApplication.processingRegistry().removeProvider(self.provider)
     
     def showDialog(self):
         """Display the KML Dialog window."""
-        if not self.dialog:
-            self.dialog = SimpleKMLDialog(self.iface)
-        self.dialog.show()
+        results = processing.execAlgorithmDialog('kmltools:importkml', {})
     
     def htmlDescDialog(self):
         """Display the KML Dialog window."""

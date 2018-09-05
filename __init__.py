@@ -1,3 +1,3 @@
 def classFactory(iface):
-    from .simplekml import SimpleKML
-    return SimpleKML(iface)
+    from .kmltools import KMLTools
+    return KMLTools(iface)

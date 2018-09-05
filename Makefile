@@ -1,8 +1,8 @@
-PLUGINNAME = simplekml
+PLUGINNAME = kmltools
 PLUGINS = "$(HOME)"/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins/$(PLUGINNAME)
-PY_FILES = simplekml.py __init__.py simpleKMLDialog.py htmlExpansionDialog.py
+PY_FILES = kmltools.py __init__.py importKml.py htmlExpansionDialog.py provider.py
 EXTRAS = icon.png html.png metadata.txt
-UI_FILES = simplekmldialog.ui htmlExpansion.ui htmlFields.ui
+UI_FILES = importkmldialog.ui htmlExpansion.ui htmlFields.ui
 
 deploy: 
 	mkdir -p $(PLUGINS)
