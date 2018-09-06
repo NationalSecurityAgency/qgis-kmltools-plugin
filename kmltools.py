@@ -17,10 +17,12 @@
  *                                                                         *
  ***************************************************************************/
 """
+from qgis.PyQt.QtCore import QUrl
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 from qgis.core import QgsApplication
 import processing
+import webbrowser
 
 import os
 from .provider import KmlToolsProvider
@@ -47,6 +49,11 @@ class KMLTools(object):
         self.htmlDescAction.setCheckable(False)
         self.iface.addToolBarIcon(self.htmlDescAction)
         self.iface.addPluginToVectorMenu("KML Tools", self.htmlDescAction)
+        # Help
+        icon = QIcon(os.path.dirname(__file__) + '/help.png')
+        self.helpAction = QAction(icon, "Help", self.iface.mainWindow())
+        self.helpAction.triggered.connect(self.help)
+        self.iface.addPluginToVectorMenu('KML Tools', self.helpAction)
         
         # Add the processing provider
         QgsApplication.processingRegistry().addProvider(self.provider)
@@ -55,6 +62,7 @@ class KMLTools(object):
         """Remove the plugin menu item and icon from QGIS GUI."""
         self.iface.removePluginVectorMenu("KML Tools", self.kmlAction)
         self.iface.removePluginVectorMenu("KML Tools", self.htmlDescAction)
+        self.iface.removePluginVectorMenu("KML Tools", self.helpAction)
         self.iface.removeToolBarIcon(self.kmlAction)
         self.iface.removeToolBarIcon(self.htmlDescAction)
         QgsApplication.processingRegistry().removeProvider(self.provider)
@@ -68,5 +76,11 @@ class KMLTools(object):
         if not self.htmlDialog:
             self.htmlDialog = HTMLExpansionDialog(self.iface)
         self.htmlDialog.show()
+        
+    def help(self):
+        '''Display a help page'''
+        url = QUrl.fromLocalFile(os.path.dirname(__file__) + "/index.html").toString()
+        webbrowser.open(url, new=2)
+        
         
         
