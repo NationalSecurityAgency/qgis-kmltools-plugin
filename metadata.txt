@@ -1,14 +1,14 @@
 [general]
 name=KML Tools
 qgisMinimumVersion=3.0
-description=A simple but important KML/KMZ importer
+description=Fast KML/KMZ importer with description field expansion
 version=3.0
 author=C Hamilton
 email=adenaculture@gmail.com
-about=The native QGIS KML importer creates separate layers for each folder within a KML. If there are hundreds of layers, the import can be very slow or can crash QGIS. This plugin only creates one point layer, one line layer, and one polygon layer. It adds the nested folder structure to a field in the QGIS layer. This makes the KML/KMZ import very quick.
+about=The native QGIS KML importer creates separate layers for each folder within a KML. If there are hundreds of layers, the import can be very slow or can crash QGIS. This plugin only creates one point layer, one line layer, and one polygon layer. It adds the nested folder structure to a field in the QGIS layer. This makes the KML/KMZ import very quick. An additional tool looks at the KML description field to see if there are two column tables with entries that could be expanded into table fields.
 tracker=https://github.com/NationalSecurityAgency/qgis-kmltools-plugin/issues
 repository=https://github.com/NationalSecurityAgency/qgis-kmltools-plugin
-tags=kml,kmz,points,lines,polygons
+tags=kml,kmz,points,lines,polygons,html
 homepage=https://github.com/NationalSecurityAgency/qgis-kmltools-plugin
 category=Vector
 icon=icon.png
