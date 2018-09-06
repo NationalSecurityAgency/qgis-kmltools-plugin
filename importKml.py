@@ -12,7 +12,7 @@
 
 import os
 import re
-from qgis.PyQt.QtCore import QVariant, QCoreApplication
+from qgis.PyQt.QtCore import QObject, QVariant, QCoreApplication, QUrl, pyqtSignal
 from qgis.PyQt.QtGui import QIcon
 
 from qgis.core import QgsCoordinateReferenceSystem, QgsPointXY, QgsFeature, QgsGeometry, QgsFields, QgsField, QgsWkbTypes
@@ -25,6 +25,8 @@ from qgis.core import (QgsProcessing,
 from zipfile import ZipFile
 import xml.sax, xml.sax.handler
 #import traceback
+
+epsg4326 = QgsCoordinateReferenceSystem("EPSG:4326")
 
 def tr(string):
     return QCoreApplication.translate('Processing', string)
@@ -65,6 +67,8 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
             )
     
     def processAlgorithm(self, parameters, context, feedback):
+        self.parameters = parameters
+        self.context = context
         filename = self.parameterAsFile(parameters, self.PrmInput, context)
         f, extension = os.path.splitext(filename)
         extension = extension.lower()
@@ -83,35 +87,17 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
             feedback.reportError(msg)
             raise QgsProcessingException(msg)
             
-        epsg4326 = QgsCoordinateReferenceSystem("EPSG:4326")
-        f = QgsFields()
-        f.append(QgsField("name", QVariant.String))
-        f.append(QgsField("folders", QVariant.String))
-        f.append(QgsField("description", QVariant.String))
-        f.append(QgsField("altitude", QVariant.Double))
-        f.append(QgsField("alt_mode", QVariant.String))
-        f.append(QgsField("time_begin", QVariant.String))
-        f.append(QgsField("time_end", QVariant.String))
-        f.append(QgsField("time_when", QVariant.String))
-        (sinkPt, dest_id_pt) = self.parameterAsSink(parameters,
-            self.PrmPointOutputLayer, context, f,
-            QgsWkbTypes.Point, epsg4326)
-        f = QgsFields()
-        f.append(QgsField("name", QVariant.String))
-        f.append(QgsField("folders", QVariant.String))
-        f.append(QgsField("description", QVariant.String))
-        f.append(QgsField("time_begin", QVariant.String))
-        f.append(QgsField("time_end", QVariant.String))
-        f.append(QgsField("time_when", QVariant.String))
-        (sinkLine, dest_id_line) = self.parameterAsSink(parameters,
-            self.PrmLineOutputLayer, context, f,
-            QgsWkbTypes.LineString, epsg4326)
-        (sinkPoly, dest_id_poly) = self.parameterAsSink(parameters,
-            self.PrmPolygonOutputLayer, context, f,
-            QgsWkbTypes.Polygon, epsg4326)
-        
+        skipPt = True if self.PrmPointOutputLayer not in parameters or parameters[self.PrmPointOutputLayer] is None else False
+        skipline = True if self.PrmLineOutputLayer not in parameters or parameters[self.PrmLineOutputLayer] is None else False
+        skipPoly = True if self.PrmPolygonOutputLayer not in parameters or parameters[self.PrmPolygonOutputLayer] is None else False
+        self.cntPt = 0
+        self.cntLine = 0
+        self.cntPoly = 0
         parser = xml.sax.make_parser()
-        handler = PlacemarkHandler(sinkPt, sinkLine, sinkPoly)
+        handler = PlacemarkHandler(skipPt, skipline, skipPoly)
+        handler.addpoint.connect(self.addpoint)
+        handler.addline.connect(self.addline)
+        handler.addpolygon.connect(self.addpolygon)
         parser.setContentHandler(handler)
         try:
             input_source = xml.sax.xmlreader.InputSource()
@@ -128,19 +114,68 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
         else:
             kml.close()
             
-        feedback.pushInfo('{} points extracted'.format(handler.cntPt))
-        feedback.pushInfo('{} lines extracted'.format(handler.cntLine))
-        feedback.pushInfo('{} polygons extracted'.format(handler.cntPoly))
+        feedback.pushInfo('{} points extracted'.format(self.cntPt))
+        feedback.pushInfo('{} lines extracted'.format(self.cntLine))
+        feedback.pushInfo('{} polygons extracted'.format(self.cntPoly))
         
         r = {}
-        if handler.cntPt > 0:
-            r[self.PrmPointOutputLayer] = dest_id_pt
-        if handler.cntLine > 0:
-            r[self.PrmLineOutputLayer] = dest_id_line
-        if handler.cntPoly > 0:
-            r[self.PrmPolygonOutputLayer] = dest_id_poly
+        if self.cntPt > 0:
+            r[self.PrmPointOutputLayer] = self.dest_id_pt
+        if self.cntLine > 0:
+            r[self.PrmLineOutputLayer] = self.dest_id_line
+        if self.cntPoly > 0:
+            r[self.PrmPolygonOutputLayer] = self.dest_id_poly
 
         return (r)
+        
+    def addpoint(self, feature):
+        if self.cntPt == 0:
+            f = QgsFields()
+            f.append(QgsField("name", QVariant.String))
+            f.append(QgsField("folders", QVariant.String))
+            f.append(QgsField("description", QVariant.String))
+            f.append(QgsField("altitude", QVariant.Double))
+            f.append(QgsField("alt_mode", QVariant.String))
+            f.append(QgsField("time_begin", QVariant.String))
+            f.append(QgsField("time_end", QVariant.String))
+            f.append(QgsField("time_when", QVariant.String))
+            (self.sinkPt, self.dest_id_pt) = self.parameterAsSink(self.parameters,
+                self.PrmPointOutputLayer, self.context, f,
+                QgsWkbTypes.Point, epsg4326)
+                
+        self.cntPt += 1
+        self.sinkPt.addFeature(feature)
+            
+    def addline(self, feature):
+        if self.cntLine == 0:
+            f = QgsFields()
+            f.append(QgsField("name", QVariant.String))
+            f.append(QgsField("folders", QVariant.String))
+            f.append(QgsField("description", QVariant.String))
+            f.append(QgsField("time_begin", QVariant.String))
+            f.append(QgsField("time_end", QVariant.String))
+            f.append(QgsField("time_when", QVariant.String))
+            (self.sinkLine, self.dest_id_line) = self.parameterAsSink(self.parameters,
+                self.PrmLineOutputLayer, self.context, f,
+                QgsWkbTypes.LineString, epsg4326)
+        
+        self.cntLine += 1
+        self.sinkLine.addFeature(feature)
+        
+    def addpolygon(self, feature):
+        if self.cntPoly == 0:
+            f = QgsFields()
+            f.append(QgsField("name", QVariant.String))
+            f.append(QgsField("folders", QVariant.String))
+            f.append(QgsField("description", QVariant.String))
+            f.append(QgsField("time_begin", QVariant.String))
+            f.append(QgsField("time_end", QVariant.String))
+            f.append(QgsField("time_when", QVariant.String))
+            (self.sinkPoly, self.dest_id_poly) = self.parameterAsSink(self.parameters,
+                self.PrmPolygonOutputLayer, self.context, f,
+                QgsWkbTypes.Polygon, epsg4326)
+        self.cntPoly += 1
+        self.sinkPoly.addFeature(feature)
         
     def name(self):
         return 'importkml'
@@ -157,19 +192,27 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
     def groupId(self):
         return 'vectorconversion'
         
+    def helpUrl(self):
+        file = os.path.dirname(__file__)+'/index.html'
+        if not os.path.exists(file):
+            return ''
+        return QUrl.fromLocalFile(file).toString(QUrl.FullyEncoded)
+        
     def createInstance(self):
         return ImportKmlAlgorithm()
 
 
-class PlacemarkHandler(xml.sax.handler.ContentHandler):
-    def __init__(self, sinkPt, sinkLine, sinkPoly):
+class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
+    addpoint = pyqtSignal(QgsFeature)
+    addline = pyqtSignal(QgsFeature)
+    addpolygon = pyqtSignal(QgsFeature)
+    def __init__(self, skipPt, skipLine, skipPoly):
+        QObject.__init__(self)
+        xml.sax.handler.ContentHandler.__init__(self)
         self.schema = {}
-        self.sinkPt = sinkPt
-        self.sinkLine = sinkLine
-        self.sinkPoly = sinkPoly
-        self.cntPt = 0
-        self.cntLine = 0
-        self.cntPoly =  0
+        self.skipPt = skipPt
+        self.skipLine = skipLine
+        self.skipPoly = skipPoly
         
         self.inPlacemark = False
         self.resetSettings()
@@ -387,7 +430,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
     
     def process(self, type, name, desc, coord, lon, lat, altitude, alt_mode, begin, end, when):
         if type <= 1:
-            if not self.sinkPt:
+            if self.skipPt:
                 return
             if type == 0:
                 c = coord.split(',')
@@ -410,11 +453,10 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
             feature.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(lon,lat)))
             attr = [name, self.folderString(), desc, altitude, alt_mode, begin, end, when]
             feature.setAttributes(attr)
-            self.sinkPt.addFeature(feature)
-            self.cntPt += 1
+            self.addpoint.emit(feature)
             
         elif type == 2: #LineString
-            if not self.sinkLine:
+            if self.skipLine:
                 return
             pts = coord2pts(coord)
             
@@ -422,11 +464,10 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
             feature.setGeometry(QgsGeometry.fromPolylineXY(pts))
             attr = [name, self.folderString(), desc, begin, end, when]
             feature.setAttributes(attr)
-            self.sinkLine.addFeature(feature)
-            self.cntLine += 1
+            self.addline.emit(feature)
             
         elif type == 3: #Polygon
-            if not self.sinkPoly:
+            if self.skipPoly:
                 return
             pts = []
             pts.append(coord2pts(self.outerPoly))
@@ -439,9 +480,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler):
             feature.setGeometry(QgsGeometry.fromPolygonXY(pts))
             attr = [name, self.folderString(), desc, begin, end, when]
             feature.setAttributes(attr)
-            self.sinkPoly.addFeature(feature)
-            self.cntPoly += 1
-            
+            self.addpolygon.emit(feature)            
             
 def coord2pts(coords):
     pts = []
