@@ -13,7 +13,7 @@
 import os
 import re
 from qgis.PyQt import uic
-from qgis.PyQt.QtCore import QObject, QSettings, QVariant, Qt, QUrl, QCoreApplication, pyqtSignal, pyqtSlot
+from qgis.PyQt.QtCore import QObject, QSettings, QVariant, Qt, QUrl, QCoreApplication, pyqtSignal
 from qgis.PyQt.QtWidgets import QDialog
 from qgis.PyQt.QtGui import QStandardItemModel, QStandardItem, QIcon
 
@@ -81,8 +81,7 @@ class HTMLExpansionProcess(QObject):
                 else:
                     attr.append("")
             featureout.setAttributes(feature.attributes()+attr)
-            self.addFeature.emit(featureout)        
-        
+            self.addFeature.emit(featureout)
     
         
 class HTMLExpansionAlgorithm(QgsProcessingAlgorithm):
@@ -272,7 +271,7 @@ class MyHTMLParser(HTMLParser):
         tag = tag.lower()
         if tag == 'table':
             self.inTable = False
-        elif tag == 'tr':
+        elif tag == 'tr' and self.col >= 1:
             if self.mode == 0:
                 if self.buffer1 in self.tableFields:
                     if self.buffer2 != '':
