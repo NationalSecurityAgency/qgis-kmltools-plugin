@@ -8,7 +8,7 @@ The native QGIS importer creates separate layers for each folder within a KML/KM
 
 <div style="text-align:center"><img src="doc/import.jpg" alt="Import KML/KMZ"></div>
 
-<img src="html.png" alt="HTML description expansion"> ***Expand HTML description table*** - This has a very narrow purpose. Before this can be run, the KML needs to be imported into QGIS with ***Import KML/KMZ***. If the KML has a description entry that contains an HTML table with two columns were the first column represents a table or field name and the second column its value, then this function will parse these fields and add them to a new attribute table field. This can either be run from the menu, tool bar, or *Processing Toolbox*; however, running it from the menu or tool bar provides user interaction during the conversion to select which fields they want to expand. 
+<img src="html.png" alt="HTML description expansion"> ***Expand HTML description table*** - This has a very narrow purpose. Before this can be run, the KML needs to be imported into QGIS with ***Import KML/KMZ***. If the KML has a description entry that contains an HTML table with two columns were the first column represents a table or field name and the second column its value, then this function will parse these fields and add them to a new attribute table field. This can either be run from the menu, tool bar, or *Processing Toolbox*; however, running it from the menu or tool bar provides user interaction during the conversion to select which fields they want to expand. During expansion some of the expansion names may already exist in the table. If that is the case then an '_' followed by a number is appended to then end.
 
 <div style="text-align:center"><img src="doc/html.jpg" alt="HTML Expander"></div>
 
@@ -25,7 +25,9 @@ This is the type of data that it currently expands. The two tags will become **C
     &lt;/table&gt;
 </pre></code>
 
-The ***Processing Toolbox*** version of ***Expand HTML description table*** operates a little differently because processing routines cannot be interactive. In this case it will expand all possible tags that are found.
+The ***Processing Toolbox*** version of ***Expand HTML description table*** operates a little differently because processing routines cannot be interactive. In this case it will expand all possible tags that are found. Optionally, you can include a list of name tags you want expanded if you know them ahead of time. This is the Processing expansion dialog box.
+
+<div style="text-align:center"><img src="doc/html3.jpg" alt="HTML Expander"></div>
 
 Because there is no standard way of including additional information in the KML description entry, it is difficult to come up with a way to expand all cases. Right now this just works with HTML tables, but please let us know if there are other description formats that you would like us to tackle.
 
