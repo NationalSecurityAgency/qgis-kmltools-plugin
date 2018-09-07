@@ -37,14 +37,14 @@ class KMLTools(object):
     def initGui(self):
         """Create the menu & tool bar items within QGIS"""
         icon = QIcon(os.path.dirname(__file__) + "/icon.png")
-        self.kmlAction = QAction(icon, "Simple KML Importer", self.iface.mainWindow())
+        self.kmlAction = QAction(icon, "Import KML/KMZ", self.iface.mainWindow())
         self.kmlAction.triggered.connect(self.showDialog)
         self.kmlAction.setCheckable(False)
         self.iface.addToolBarIcon(self.kmlAction)
         self.iface.addPluginToVectorMenu("KML Tools", self.kmlAction)
         # Expansion of HTML description field
         icon = QIcon(os.path.dirname(__file__) + "/html.png")
-        self.htmlDescAction = QAction(icon, "Expand HTML Description Field", self.iface.mainWindow())
+        self.htmlDescAction = QAction(icon, "Expand HTML description table", self.iface.mainWindow())
         self.htmlDescAction.triggered.connect(self.htmlDescDialog)
         self.htmlDescAction.setCheckable(False)
         self.iface.addToolBarIcon(self.htmlDescAction)
