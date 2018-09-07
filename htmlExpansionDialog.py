@@ -23,6 +23,7 @@ from qgis.core import (QgsProcessing,
     QgsProcessingAlgorithm,
     QgsProcessingParameterFeatureSource,
     QgsProcessingParameterField,
+    QgsProcessingParameterString,
     QgsProcessingParameterFeatureSink)
 
 from html.parser import HTMLParser
@@ -46,6 +47,10 @@ class HTMLExpansionProcess(QObject):
         self.selected = []
         
     def autoGenerateFileds(self):
+        '''Look through the description field for each vector entry
+        for any HTMLtables that have
+        name/value pairs and collect all the names. These will become
+        the desired output expanded name fields.'''
         iterator = self.source.getFeatures()
         self.htmlparser.setMode(0)
         for feature in iterator:
@@ -54,16 +59,48 @@ class HTMLExpansionProcess(QObject):
             self.htmlparser.close()
         self.selected = self.htmlparser.fieldList()
 
-    def setSelectedFields(self, selected):
+    def setDesiredFields(self, selected):
+        '''Set the desired expanded field names'''
         self.selected = list(selected)
         
-    def selectedFields(self):
+    def desiredFields(self):
+        '''Return a list of all the desired expanded output names'''
         return self.selected
         
     def fields(self):
+        '''Return a dictionary of all the unique names and a count as to
+        the number of times it had content.
+        '''
         return self.htmlparser.fields()
         
+    def uniqueDesiredNames(self, names):
+        '''Make sure field names are not repeated. This looks at the 
+        source names and the desired field names to make sure they are not the
+        same. If they are a number is appended to make it unique.
+        '''
+        nameSet = set(names)
+        newnames = [] # These are the unique selected field names
+        for name in self.selected:
+            if name in nameSet:
+                # The name already exists so we need to create a new name
+                n = name+"_1"
+                index = 2
+                # Find a unique name
+                while n in nameSet:
+                    n = '{}_{}'.format(name,index)
+                    index += 1
+                newnames.append(n)
+                nameSet.add(n)
+            else:
+                newnames.append(name)
+                nameSet.add(name)
+        return(newnames)
+        
     def processSource(self):
+        '''Iterate through each record and look for html table entries in the description
+        filed and see if there are any name/value pairs that match the desired expanded
+        ouput field names. 
+        '''
         self.htmlparser.setMode(1)
         iterator = self.source.getFeatures()
         tableFields = self.htmlparser.fields()
@@ -86,10 +123,12 @@ class HTMLExpansionProcess(QObject):
         
 class HTMLExpansionAlgorithm(QgsProcessingAlgorithm):
     """
-    Algorithm to import KML and KMZ files.
+    Algorithm to expand HTML tables located in a description field into additional
+    attributes.
     """
     PrmInputLayer = 'InputLayer'
     PrmDescriptionField = 'DescriptionField'
+    PrmExpansionTags = 'ExpansionTags'
     PrmOutputLayer = 'OutputLayer'
     
     def initAlgorithm(self, config):
@@ -109,6 +148,12 @@ class HTMLExpansionAlgorithm(QgsProcessingAlgorithm):
             )
         )
         self.addParameter(
+            QgsProcessingParameterString(
+                self.PrmExpansionTags,
+                tr('Comma separated list of expansion tags - Left blank autogenerates all tags'),
+                optional=True)
+        )
+        self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.PrmOutputLayer,
                 tr('Output layer'))
@@ -117,20 +162,30 @@ class HTMLExpansionAlgorithm(QgsProcessingAlgorithm):
     def processAlgorithm(self, parameters, context, feedback):
         source = self.parameterAsSource(parameters, self.PrmInputLayer, context)
         field = self.parameterAsString(parameters, self.PrmDescriptionField, context)
+        tags = self.parameterAsString(parameters, self.PrmExpansionTags, context).strip()
+        feedback.pushInfo(tags)
         if not field:
             msg = tr('Must have a valid description field')
             feedback.reportError(msg)
             raise QgsProcessingException(msg)
         
+        # Set up the HTML expansion processor
         self.htmlProcessor = HTMLExpansionProcess(source, field)
         self.htmlProcessor.addFeature.connect(self.addFeature)
-        self.htmlProcessor.autoGenerateFileds()
+        # Have it generate a list of all possible expansion field names
+        if self.PrmExpansionTags in parameters and tags != '':
+            expansionNames = [x.strip() for x in tags.split(',')]
+            feedback.pushInfo('{}'.format(expansionNames))
+            self.htmlProcessor.setDesiredFields(expansionNames)
+        else:
+            self.htmlProcessor.autoGenerateFileds()
         
         srcCRS = source.sourceCrs()
         wkbtype = source.wkbType()
         
+        # Create a copy of the fields for the output
         fieldsout = QgsFields(source.fields())
-        for item in self.htmlProcessor.selectedFields():
+        for item in self.htmlProcessor.uniqueDesiredNames(source.fields().names()):
             fieldsout.append(QgsField(item, QVariant.String))
             
         (self.sink, dest_id) = self.parameterAsSink(parameters,
@@ -163,7 +218,7 @@ class HTMLExpansionAlgorithm(QgsProcessingAlgorithm):
 
 class HTMLExpansionDialog(QDialog, FORM_CLASS):
     def __init__(self, iface):
-        """Initialize the QGIS Simple KML inport dialog window."""
+        """Initialize the HTML expansion dialog window."""
         super(HTMLExpansionDialog, self).__init__(iface.mainWindow())
         self.setupUi(self)
         self.iface = iface
@@ -189,19 +244,27 @@ class HTMLExpansionDialog(QDialog, FORM_CLASS):
             self.iface.messageBar().pushMessage("", "Invalid field name", level=Qgis.Warning, duration=3)
             return
         
+        # Set up the HTML expansion processor
         self.htmlProcessor = HTMLExpansionProcess(layer, field)
         self.htmlProcessor.addFeature.connect(self.addFeature)
+        # Have it generate a list of all possible expansion field names
         self.htmlProcessor.autoGenerateFileds()
         
+        # From the expansion processor get the list of possible expansion fields
+        # and show a popup of them so the user can select which he wants in the output.
         fieldsDialog = HTMLFieldSelectionDialog(self.iface, self.htmlProcessor.fields())
         fieldsDialog.exec_()
-        self.htmlProcessor.setSelectedFields(fieldsDialog.selected)
+        # From the users selections of expansion fields, set them in the processor.
+        # This is just a list of names.
+        self.htmlProcessor.setDesiredFields(fieldsDialog.selected)
         
         
         wkbtype = layer.wkbType()
         layercrs = layer.crs()
+        # Create the new list of attribute names from the original data with the unique
+        # expansion names.
         fieldsout = QgsFields(layer.fields())
-        for item in self.htmlProcessor.selectedFields():
+        for item in self.htmlProcessor.uniqueDesiredNames(layer.fields().names()):
             fieldsout.append(QgsField(item, QVariant.String))
         newLayer = QgsVectorLayer("{}?crs={}".format(QgsWkbTypes.displayString(wkbtype), layercrs.authid()), newlayername, "memory")
         
@@ -209,6 +272,8 @@ class HTMLExpansionDialog(QDialog, FORM_CLASS):
         self.dp.addAttributes(fieldsout)
         newLayer.updateFields()
         
+        # Process each record in the input layer with the expanded entries.
+        # The actual record is added with the 'addFeature' callback
         self.htmlProcessor.processSource()
         self.htmlProcessor.addFeature.disconnect(self.addFeature)
                 
