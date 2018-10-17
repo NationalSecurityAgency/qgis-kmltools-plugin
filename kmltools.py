@@ -44,7 +44,7 @@ class KMLTools(object):
         self.iface.addPluginToVectorMenu("KML Tools", self.kmlAction)
         # Expansion of HTML description field
         icon = QIcon(os.path.dirname(__file__) + "/html.png")
-        self.htmlDescAction = QAction(icon, "Expand HTML description table", self.iface.mainWindow())
+        self.htmlDescAction = QAction(icon, "Expand HTML description field", self.iface.mainWindow())
         self.htmlDescAction.triggered.connect(self.htmlDescDialog)
         self.htmlDescAction.setCheckable(False)
         self.iface.addToolBarIcon(self.htmlDescAction)

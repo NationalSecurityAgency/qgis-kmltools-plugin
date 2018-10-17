@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>403</width>
-    <height>203</height>
+    <height>240</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -33,6 +33,16 @@
    </item>
    <item>
     <widget class="QgsFieldComboBox" name="descriptionComboBox"/>
+   </item>
+   <item>
+    <widget class="QLabel" name="label_4">
+     <property name="text">
+      <string>How to expand description field</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QComboBox" name="typeComboBox"/>
    </item>
    <item>
     <widget class="QLabel" name="label_3">

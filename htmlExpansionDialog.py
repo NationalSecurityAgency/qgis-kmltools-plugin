@@ -24,6 +24,7 @@ from qgis.core import (QgsProcessing,
     QgsProcessingParameterFeatureSource,
     QgsProcessingParameterField,
     QgsProcessingParameterString,
+    QgsProcessingParameterEnum,
     QgsProcessingParameterFeatureSink)
 
 from html.parser import HTMLParser
@@ -39,45 +40,51 @@ def tr(string):
 
 class HTMLExpansionProcess(QObject):
     addFeature = pyqtSignal(QgsFeature)
-    def __init__(self, source, descField):
+    def __init__(self, source, descField, type):
         QObject.__init__(self)
         self.source = source
         self.descField = descField
+        self.type = type
         self.htmlparser = MyHTMLParser()
         self.selected = []
         
     def autoGenerateFileds(self):
-        '''Look through the description field for each vector entry
+        """Look through the description field for each vector entry
         for any HTMLtables that have
         name/value pairs and collect all the names. These will become
-        the desired output expanded name fields.'''
+        the desired output expanded name fields."""
         iterator = self.source.getFeatures()
         self.htmlparser.setMode(0)
-        for feature in iterator:
-            desc = "{}".format(feature[self.descField])
-            self.htmlparser.feed(desc)
-            self.htmlparser.close()
+        if self.type == 0:
+            for feature in iterator:
+                desc = "{}".format(feature[self.descField])
+                self.htmlparser.feed(desc)
+                self.htmlparser.close()
+        else:
+            for feature in iterator:
+                desc = "{}".format(feature[self.descField])
+                self.htmlparser.processHtmlTagValue(desc)
         self.selected = self.htmlparser.fieldList()
 
     def setDesiredFields(self, selected):
-        '''Set the desired expanded field names'''
+        """Set the desired expanded field names"""
         self.selected = list(selected)
         
     def desiredFields(self):
-        '''Return a list of all the desired expanded output names'''
+        """Return a list of all the desired expanded output names"""
         return self.selected
         
     def fields(self):
-        '''Return a dictionary of all the unique names and a count as to
+        """Return a dictionary of all the unique names and a count as to
         the number of times it had content.
-        '''
+        """
         return self.htmlparser.fields()
         
     def uniqueDesiredNames(self, names):
-        '''Make sure field names are not repeated. This looks at the 
+        """Make sure field names are not repeated. This looks at the 
         source names and the desired field names to make sure they are not the
         same. If they are a number is appended to make it unique.
-        '''
+        """
         nameSet = set(names)
         newnames = [] # These are the unique selected field names
         for name in self.selected:
@@ -97,18 +104,21 @@ class HTMLExpansionProcess(QObject):
         return(newnames)
         
     def processSource(self):
-        '''Iterate through each record and look for html table entries in the description
+        """Iterate through each record and look for html table entries in the description
         filed and see if there are any name/value pairs that match the desired expanded
         ouput field names. 
-        '''
+        """
         self.htmlparser.setMode(1)
         iterator = self.source.getFeatures()
         tableFields = self.htmlparser.fields()
         for feature in iterator:
             desc = "{}".format(feature[self.descField])
             self.htmlparser.clearData()
-            self.htmlparser.feed(desc)
-            self.htmlparser.close()
+            if self.type == 0:
+                self.htmlparser.feed(desc)
+                self.htmlparser.close()
+            else:
+                self.htmlparser.processHtmlTagValue(desc)
             featureout = QgsFeature()
             featureout.setGeometry(feature.geometry())
             attr = []
@@ -130,6 +140,7 @@ class HTMLExpansionAlgorithm(QgsProcessingAlgorithm):
     PrmDescriptionField = 'DescriptionField'
     PrmExpansionTags = 'ExpansionTags'
     PrmOutputLayer = 'OutputLayer'
+    PrmExpansionType = 'ExpansionType'
     
     def initAlgorithm(self, config):
         self.addParameter(
@@ -154,6 +165,15 @@ class HTMLExpansionAlgorithm(QgsProcessingAlgorithm):
                 optional=True)
         )
         self.addParameter(
+            QgsProcessingParameterEnum(
+                self.PrmExpansionType,
+                tr('How to expand the description field'),
+                options=[tr('Expand from a 2 column HTML table'),
+                    tr('Expand from "tag = value" pairs')],
+                defaultValue=0,
+                optional=False)
+        )
+        self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.PrmOutputLayer,
                 tr('Output layer'))
@@ -163,6 +183,7 @@ class HTMLExpansionAlgorithm(QgsProcessingAlgorithm):
         source = self.parameterAsSource(parameters, self.PrmInputLayer, context)
         field = self.parameterAsString(parameters, self.PrmDescriptionField, context)
         tags = self.parameterAsString(parameters, self.PrmExpansionTags, context).strip()
+        type = self.parameterAsInt(parameters, self.PrmExpansionType, context)
         feedback.pushInfo(tags)
         if not field:
             msg = tr('Must have a valid description field')
@@ -170,7 +191,7 @@ class HTMLExpansionAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException(msg)
         
         # Set up the HTML expansion processor
-        self.htmlProcessor = HTMLExpansionProcess(source, field)
+        self.htmlProcessor = HTMLExpansionProcess(source, field, type)
         self.htmlProcessor.addFeature.connect(self.addFeature)
         # Have it generate a list of all possible expansion field names
         if self.PrmExpansionTags in parameters and tags != '':
@@ -205,7 +226,7 @@ class HTMLExpansionAlgorithm(QgsProcessingAlgorithm):
         return QIcon(os.path.dirname(__file__) + '/html.png')
     
     def displayName(self):
-        return tr('Expand HTML description table')
+        return tr('Expand HTML description field')
     
     def group(self):
         return tr('Vector conversion')
@@ -224,18 +245,21 @@ class HTMLExpansionDialog(QDialog, FORM_CLASS):
         self.iface = iface
         self.inputLayerComboBox.setFilters(QgsMapLayerProxyModel.VectorLayer)
         self.inputLayerComboBox.layerChanged.connect(self.layerChanged)
+        self.typeComboBox.addItems([tr('Expand from a 2 column HTML table'),
+            tr('Expand from "tag = value" pairs')])
         
     def showEvent(self, event):
-        '''The dialog is being shown. We need to initialize it.'''
+        """The dialog is being shown. We need to initialize it."""
         super(HTMLExpansionDialog, self).showEvent(event)
         self.layerChanged()
     
     def accept(self):
-        '''Called when the OK button has been pressed.'''
+        """Called when the OK button has been pressed."""
         layer = self.inputLayerComboBox.currentLayer()
         if not layer:
             return
         newlayername = self.outputLayerLineEdit.text().strip()
+        type = self.typeComboBox.currentIndex()
             
         # Find all the possible fields in the description area
         field = self.descriptionComboBox.currentField()
@@ -245,7 +269,7 @@ class HTMLExpansionDialog(QDialog, FORM_CLASS):
             return
         
         # Set up the HTML expansion processor
-        self.htmlProcessor = HTMLExpansionProcess(layer, field)
+        self.htmlProcessor = HTMLExpansionProcess(layer, field, type)
         self.htmlProcessor.addFeature.connect(self.addFeature)
         # Have it generate a list of all possible expansion field names
         self.htmlProcessor.autoGenerateFileds()
@@ -318,6 +342,31 @@ class MyHTMLParser(HTMLParser):
         
     def fields(self):
         return self.tableFields
+        
+    def processHtmlTagValue(self, desc):
+        lines = re.split(r'<br.*?>|<p.*?>|<td.*?>|<th.*?>', desc, flags=re.IGNORECASE)
+        p = re.compile(r'<.*?>')
+        s = re.compile(r'\s+')
+        for line in lines:
+            line = p.sub('', line) # remove HTML formatting
+            line = s.sub(' ', line) # remove extra white space
+            line = line.strip()
+            m = re.match("(.+?)\s*=\s*(.+)", line)
+            if m: # We have a tag=value match
+                tag = m[1].strip()
+                value = m[2].strip()
+                if self.mode == 0:
+                    if tag in self.tableFields:
+                        if value != '':
+                            self.tableFields[tag] += 1
+                    else:
+                        if value != '':
+                            self.tableFields[tag] = 1
+                        else:
+                            self.tableFields[tag] = 0
+                else:
+                    self.tableFields[tag] = value
+                
         
     def handle_starttag(self, tag, attrs):
         tag = tag.lower()
