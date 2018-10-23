@@ -2,13 +2,13 @@
 name=KML Tools
 qgisMinimumVersion=3.0
 description=Fast KML/KMZ importer with description field expansion - This is a work in progress
-version=3.0.1
+version=3.0.2
 author=C Hamilton
 email=adenaculture@gmail.com
 about=
     Note: This plugin is a work in progress. It does not handle everything and we would appreciate reports of cases where it does not work as well as KML samples. Rather than rate it at this point in time, please give feedback.
 
-    The native QGIS KML importer creates separate layers for each folder within a KML. If there are hundreds of layers, the import can be very slow or can crash QGIS. This plugin only creates one point layer, one line layer, and one polygon layer. It adds the nested folder structure to a field in the QGIS layer. This makes the KML/KMZ import very quick. An additional tool looks at the KML description field to see if there are two column tables with entries or tag=value pairs that could be expanded into table fields.
+    The native QGIS KML importer creates separate layers for each folder within a KML. If there are hundreds of layers, the import can be very slow or can crash QGIS. This plugin only creates one point layer, one line layer, and one polygon layer. It adds the nested folder structure to a field in the QGIS layer. This makes the KML/KMZ import very quick. An additional tool looks at the KML description field to see if there are two column tables with entries, "tag=value" pairs, or "tag: value" pairs that could be expanded into table fields.
 tracker=https://github.com/NationalSecurityAgency/qgis-kmltools-plugin/issues
 repository=https://github.com/NationalSecurityAgency/qgis-kmltools-plugin
 tags=kml,kmz,points,lines,polygons,html
@@ -18,5 +18,6 @@ icon=icon.png
 experimental=False
 deprecated=False
 changelog=
+    3.0.2 - Added tag: value attribute table expansion
     3.0.1 - Added tag=value attribute table expansion
     3.0.0 - Initial release

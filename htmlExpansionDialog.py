@@ -60,10 +60,14 @@ class HTMLExpansionProcess(QObject):
                 desc = "{}".format(feature[self.descField])
                 self.htmlparser.feed(desc)
                 self.htmlparser.close()
-        else:
+        elif self.type == 1: # tag = value
             for feature in iterator:
                 desc = "{}".format(feature[self.descField])
-                self.htmlparser.processHtmlTagValue(desc)
+                self.htmlparser.processHtmlTagValue(desc, '=')
+        else: # tag: value
+            for feature in iterator:
+                desc = "{}".format(feature[self.descField])
+                self.htmlparser.processHtmlTagValue(desc, ':')
         self.selected = self.htmlparser.fieldList()
 
     def setDesiredFields(self, selected):
@@ -117,8 +121,10 @@ class HTMLExpansionProcess(QObject):
             if self.type == 0:
                 self.htmlparser.feed(desc)
                 self.htmlparser.close()
-            else:
-                self.htmlparser.processHtmlTagValue(desc)
+            elif self.type == 1: # tag=value
+                self.htmlparser.processHtmlTagValue(desc, '=')
+            else: # tag: value
+                self.htmlparser.processHtmlTagValue(desc, ':')
             featureout = QgsFeature()
             featureout.setGeometry(feature.geometry())
             attr = []
@@ -169,7 +175,8 @@ class HTMLExpansionAlgorithm(QgsProcessingAlgorithm):
                 self.PrmExpansionType,
                 tr('How to expand the description field'),
                 options=[tr('Expand from a 2 column HTML table'),
-                    tr('Expand from "tag = value" pairs')],
+                    tr('Expand from "tag = value" pairs'),
+                    tr('Expand from "tag: value" pairs')],
                 defaultValue=0,
                 optional=False)
         )
@@ -246,7 +253,8 @@ class HTMLExpansionDialog(QDialog, FORM_CLASS):
         self.inputLayerComboBox.setFilters(QgsMapLayerProxyModel.VectorLayer)
         self.inputLayerComboBox.layerChanged.connect(self.layerChanged)
         self.typeComboBox.addItems([tr('Expand from a 2 column HTML table'),
-            tr('Expand from "tag = value" pairs')])
+            tr('Expand from "tag = value" pairs'),
+            tr('Expand from "tag: value" pairs')])
         
     def showEvent(self, event):
         """The dialog is being shown. We need to initialize it."""
@@ -343,18 +351,19 @@ class MyHTMLParser(HTMLParser):
     def fields(self):
         return self.tableFields
         
-    def processHtmlTagValue(self, desc):
+    def processHtmlTagValue(self, desc, delim='='):
         lines = re.split(r'<br.*?>|<p.*?>|<td.*?>|<th.*?>', desc, flags=re.IGNORECASE)
         p = re.compile(r'<.*?>')
         s = re.compile(r'\s+')
+        parser = re.compile(r'(.+?)\s*{}\s*(.+)'.format(delim))
         for line in lines:
             line = p.sub('', line) # remove HTML formatting
             line = s.sub(' ', line) # remove extra white space
             line = line.strip()
-            m = re.match("(.+?)\s*=\s*(.+)", line)
+            m = parser.match(line)
             if m: # We have a tag=value match
-                tag = m[1].strip()
-                value = m[2].strip()
+                tag = m.group(1).strip()
+                value = m.group(2).strip()
                 if self.mode == 0:
                     if tag in self.tableFields:
                         if value != '':

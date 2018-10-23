@@ -24,6 +24,12 @@ The native QGIS importer creates separate layers for each folder within a KML/KM
     <b>City<b/> = Provo<br/>
     <b>State<b/> = Utah<br/>
 ```
+* ***Expand from "tag: value" pairs*** - If the KML has a description entry that contains "tag: value" entries separated by new paragraphs, line breaks, or entries in a single table column, then this option will parse these fields and add them to a new attribute table field. This is an example of data that it expands.
+
+```
+    <b>City:<b/> Provo<br/>
+    <b>State:<b/> Utah<br/>
+```
 
 This can either be run from the menu, tool bar, or *Processing Toolbox*; however, running it from the menu or tool bar provides user interaction during the conversion to select which fields they want to expand. During expansion some of the expansion names may already exist in the table. If that is the case then an '_' followed by a number is appended to the end.
 
@@ -37,6 +43,6 @@ The ***Processing Toolbox*** version of ***Expand HTML description table*** oper
 
 <div style="text-align:center"><img src="doc/html3.jpg" alt="HTML Expander"></div>
 
-Because there is no standard way of including additional information in the KML description entry, it is difficult to come up with a way to expand all cases. Right now this just works with two column HTML tables and ***tag=value*** pairs, but please let us know if there are other description formats that you would like us to tackle.
+Because there is no standard way of including additional information in the KML description entry, it is difficult to come up with a way to expand all cases. Right now this just works with two column HTML tables, ***tag=value***, and ***tag: value*** pairs, but please let us know if there are other description formats that you would like us to tackle.
 
 This plugin may not be for everyone as it does not implement the entire KML specification, but if you find that it is missing some aspect of KML, let us know and perhaps we can add it.
