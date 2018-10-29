@@ -94,7 +94,7 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
         self.cntLine = 0
         self.cntPoly = 0
         parser = xml.sax.make_parser()
-        handler = PlacemarkHandler(skipPt, skipline, skipPoly)
+        handler = PlacemarkHandler(skipPt, skipline, skipPoly, feedback)
         handler.addpoint.connect(self.addpoint)
         handler.addline.connect(self.addline)
         handler.addpolygon.connect(self.addpolygon)
@@ -157,7 +157,7 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
             f.append(QgsField("time_when", QVariant.String))
             (self.sinkLine, self.dest_id_line) = self.parameterAsSink(self.parameters,
                 self.PrmLineOutputLayer, self.context, f,
-                QgsWkbTypes.LineString, epsg4326)
+                QgsWkbTypes.MultiLineString, epsg4326)
         
         self.cntLine += 1
         self.sinkLine.addFeature(feature)
@@ -206,13 +206,14 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
     addpoint = pyqtSignal(QgsFeature)
     addline = pyqtSignal(QgsFeature)
     addpolygon = pyqtSignal(QgsFeature)
-    def __init__(self, skipPt, skipLine, skipPoly):
+    def __init__(self, skipPt, skipLine, skipPoly, feedback):
         QObject.__init__(self)
         xml.sax.handler.ContentHandler.__init__(self)
         self.schema = {}
         self.skipPt = skipPt
         self.skipLine = skipLine
         self.skipPoly = skipPoly
+        self.feedback = feedback
         
         self.inPlacemark = False
         self.resetSettings()
@@ -236,6 +237,8 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         self.inEnd = False
         self.inTimeStamp = False
         self.inWhen = False
+        self.inMultiGeometry = False
+        self.multiPts = []
         self.type = 0 # 0 point, 1 location, 2 linestring, 3 Polygon
         self.innerPoly = []
         self.outerPoly = ""
@@ -278,10 +281,9 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
             self.inFolder = True
             self.name = ""
             
-        elif self.inFolder and not self.inPlacemark:
-            if name == "name":
-                self.inName = True 
-                self.name = ""
+        elif self.inFolder and not self.inPlacemark and name == "name":
+            self.inName = True 
+            self.name = ""
             
         elif name == "Placemark":
             self.inPlacemark = True
@@ -334,6 +336,8 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
             elif name == "altitudeMode":
                 self.inAltitudeMode = True
                 self.altitudeMode = ""
+            elif name == "MultiGeometry":
+                self.inMultiGeometry = True
             
     def characters(self, data):
         #print( "data: '" + data+"'")
@@ -360,7 +364,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
             
 
     def endElement(self, name):
-        name = self.schemaBaseLookup(name)        
+        name = self.schemaBaseLookup(name)
         if self.inPlacemark:
             if name == "name":
                 self.inName = False # on end title tag
@@ -407,6 +411,8 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
                 self.inWhen = False
             elif name == "altitudeMode":
                 self.inAltitudeMode = False
+            elif name == "LineString":
+                self.processLineString(self.coord)
             elif name == "Placemark":
                 self.process(self.type, self.name, self.description, self.coord, self.lon, self.lat, self.altitude, self.altitudeMode, self.begin, self.end, self.when)
                 self.inPlacemark = False
@@ -428,6 +434,13 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         else:
             return("")
     
+    def processLineString(self, coord):
+        if self.skipLine:
+            return
+        pts = coord2pts(coord)
+        self.multiPts.append(pts)
+        
+        
     def process(self, type, name, desc, coord, lon, lat, altitude, alt_mode, begin, end, when):
         if type <= 1:
             if self.skipPt:
@@ -458,10 +471,13 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         elif type == 2: #LineString
             if self.skipLine:
                 return
-            pts = coord2pts(coord)
-            
+            if len(self.multiPts) == 0:
+                return
             feature = QgsFeature()
-            feature.setGeometry(QgsGeometry.fromPolylineXY(pts))
+            if len(self.multiPts) == 1:
+                feature.setGeometry(QgsGeometry.fromPolylineXY(self.multiPts[0]))
+            else:
+                feature.setGeometry(QgsGeometry.fromMultiPolylineXY(self.multiPts))
             attr = [name, self.folderString(), desc, begin, end, when]
             feature.setAttributes(attr)
             self.addline.emit(feature)
