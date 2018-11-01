@@ -238,8 +238,13 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         self.inTimeStamp = False
         self.inWhen = False
         self.inMultiGeometry = False
-        self.multiPts = []
-        self.type = 0 # 0 point, 1 location, 2 linestring, 3 Polygon
+        self.inPoint = False
+        self.inLineString = False
+        self.inPolygon = False
+        self.linePts = []
+        self.ptPts = []
+        self.ptAltitude = []
+        self.polyPts = []
         self.innerPoly = []
         self.outerPoly = ""
         self.folder = ""
@@ -291,14 +296,13 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
 
         elif self.inPlacemark:
             if name == "Point":
-                self.type = 0
+                self.inPoint = True
+            elif name == "LineString":
+                self.inLineString = True
+            elif name == "Polygon":
+                self.inPolygon = True
             elif name == "Location":
                 self.inLocation = True
-                self.type = 1
-            elif name == "LineString":
-                self.type = 2
-            elif name == "Polygon":
-                self.type = 3
             elif name == "name": 
                 self.inName = True 
                 self.name = ""
@@ -340,7 +344,6 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
                 self.inMultiGeometry = True
             
     def characters(self, data):
-        #print( "data: '" + data+"'")
         if self.inName: # on text within tag
             self.name += data # save text if in title
         elif self.inDescription:
@@ -372,9 +375,15 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
             elif name == "description":
                 self.inDescription = False
                 self.description = self.description.strip()
+            elif name == "Point":
+                self.processPoint(self.coord)
+                self.inPoint = False
+            elif name == "LineString":
+                self.processLineString(self.coord)
+                self.inLineString = False
             elif name == "coordinates":
                 self.inCoordinates = False
-                if self.type == 3:
+                if self.inPolygon:
                     if self.inOuterBoundary:
                         self.outerPoly = self.coord.strip()
                     elif self.inInnerBoundary:
@@ -391,10 +400,16 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
                 self.inAltitude = False
                 self.altitude = self.altitude.strip()
             elif name == "Location":
+                self.processLocation(self.lon, self.lat, self.altitude)
                 self.inLocation = False
                 self.inLongitude = False
                 self.inLatitude = False
                 self.inAltitude = False
+            elif name == "Polygon":
+                self.processPolygon()
+                self.inPolygon = False
+                self.inOuterBoundary = False
+                self.inInnerBoundary = False
             elif name == "outerBoundaryIs":
                 self.inOuterBoundary = False
             elif name == "innerBoundaryIs":
@@ -411,10 +426,8 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
                 self.inWhen = False
             elif name == "altitudeMode":
                 self.inAltitudeMode = False
-            elif name == "LineString":
-                self.processLineString(self.coord)
             elif name == "Placemark":
-                self.process(self.type, self.name, self.description, self.coord, self.lon, self.lat, self.altitude, self.altitudeMode, self.begin, self.end, self.when)
+                self.process(self.name, self.description, self.altitudeMode, self.begin, self.end, self.when)
                 self.inPlacemark = False
                 self.resetSettings()
         elif name == 'Folder':
@@ -438,62 +451,76 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         if self.skipLine:
             return
         pts = coord2pts(coord)
-        self.multiPts.append(pts)
+        self.linePts.append(pts)
         
-        
-    def process(self, type, name, desc, coord, lon, lat, altitude, alt_mode, begin, end, when):
-        if type <= 1:
-            if self.skipPt:
-                return
-            if type == 0:
-                c = coord.split(',')
-                lat = 0.0
-                lon = 0.0
-                altitude = 0.0
-                try:
-                    lon = float( c[0] )
-                    lat = float( c[1] )
-                    if len(c) >= 3:
-                        altitude = float(c[2])
-                except:
-                    pass
-            else:
-                lon = float(lon)
-                lat = float(lat)
-                altitude = float(altitude)
-                
-            feature = QgsFeature()
-            feature.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(lon,lat)))
-            attr = [name, self.folderString(), desc, altitude, alt_mode, begin, end, when]
-            feature.setAttributes(attr)
-            self.addpoint.emit(feature)
+    def processPoint(self, coord):
+        if self.skipPt:
+            return
             
-        elif type == 2: #LineString
-            if self.skipLine:
-                return
-            if len(self.multiPts) == 0:
-                return
-            feature = QgsFeature()
-            if len(self.multiPts) == 1:
-                feature.setGeometry(QgsGeometry.fromPolylineXY(self.multiPts[0]))
+        c = coord.split(',')
+        lat = 0.0
+        lon = 0.0
+        altitude = None
+        try:
+            lon = float( c[0] )
+            lat = float( c[1] )
+            if len(c) >= 3:
+                altitude = float(c[2])
+        except:
+            return
+        pt = QgsPointXY(lon,lat)
+        self.ptPts.append(pt)
+        self.ptAltitude.append(altitude)
+        
+    def processLocation(self, lon, lat, altitude):
+        if self.skipPt:
+            return
+            
+        try:
+            lon = float(lon)
+            lat = float(lat)
+            if not altitude:
+                altitude = float(altitude)
             else:
-                feature.setGeometry(QgsGeometry.fromMultiPolylineXY(self.multiPts))
+                altitude = None
+        except:
+            return
+        pt = QgsPointXY(lon,lat)
+        self.ptPts.append(pt)
+        self.ptAltitude.append(altitude)
+        
+    def processPolygon(self):
+        if self.skipPoly:
+            return
+        self.polyPts = []
+        self.polyPts.append(coord2pts(self.outerPoly))
+        if len(self.innerPoly) > 0:
+            for p in self.innerPoly:
+                p2 = coord2pts(p)
+                self.polyPts.append(p2)
+        
+    def process(self, name, desc, alt_mode, begin, end, when):
+        if len(self.ptPts) != 0:
+            for x, pt in enumerate(self.ptPts):
+                feature = QgsFeature()
+                feature.setGeometry(QgsGeometry.fromPointXY(pt))
+                attr = [name, self.folderString(), desc, self.ptAltitude[x], alt_mode, begin, end, when]
+                feature.setAttributes(attr)
+                self.addpoint.emit(feature)
+            
+        if len(self.linePts) != 0:
+            feature = QgsFeature()
+            if len(self.linePts) == 1:
+                feature.setGeometry(QgsGeometry.fromPolylineXY(self.linePts[0]))
+            else:
+                feature.setGeometry(QgsGeometry.fromMultiPolylineXY(self.linePts))
             attr = [name, self.folderString(), desc, begin, end, when]
             feature.setAttributes(attr)
             self.addline.emit(feature)
             
-        elif type == 3: #Polygon
-            if self.skipPoly:
-                return
-            pts = []
-            pts.append(coord2pts(self.outerPoly))
-            if len(self.innerPoly) > 0:
-                for p in self.innerPoly:
-                    p2 = coord2pts(p)
-                    pts.append(p2)
-            
+        if len(self.polyPts) != 0:
             feature = QgsFeature()
-            feature.setGeometry(QgsGeometry.fromPolygonXY(pts))
+            feature.setGeometry(QgsGeometry.fromPolygonXY(self.polyPts))
             attr = [name, self.folderString(), desc, begin, end, when]
             feature.setAttributes(attr)
             self.addpolygon.emit(feature)            
