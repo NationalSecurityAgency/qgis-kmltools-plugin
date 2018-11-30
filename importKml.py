@@ -94,7 +94,37 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
         self.cntLine = 0
         self.cntPoly = 0
         parser = xml.sax.make_parser()
-        handler = PlacemarkHandler(skipPt, skipline, skipPoly, feedback)
+        # Do a pre-pass through the KML to see if there are any extended data fields
+        preprocess = PreProcessHandler()
+        parser.setContentHandler(preprocess)
+        try:
+            input_source = xml.sax.xmlreader.InputSource()
+            input_source.setByteStream(kml)
+            input_source.setEncoding('utf-8')
+            parser.parse(input_source)
+        except:
+            preprocess.endDocument()
+        # Reset the KML/KMZ file to the beginning. The handler seems to automatically close the file
+        # which is why we are reopening it.
+        if extension == '.kmz':
+            kmz.close()
+        else:
+            kml.close()
+        if extension == '.kmz':
+            kmz = ZipFile(filename, 'r')
+            kml = kmz.open('doc.kml', 'r')
+        else:
+            kml = open(filename, 'rb')
+        
+        # Set up the handler for doing the main processing
+        self.extData = preprocess.getExtendedDataFields()
+        self.extData.sort()
+        self.extDataMap = {}
+        index = 0
+        for item in self.extData:
+            self.extDataMap[item] = index
+            index += 1
+        handler = PlacemarkHandler(skipPt, skipline, skipPoly, self.extDataMap)
         handler.addpoint.connect(self.addpoint)
         handler.addline.connect(self.addline)
         handler.addpolygon.connect(self.addpolygon)
@@ -105,11 +135,12 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
             input_source.setEncoding('utf-8')
             parser.parse(input_source)
         except:
-            #traceback.print_exc()
+            '''s = traceback.format_exc()
+            feedback.pushInfo(s)'''
             feedback.pushInfo(tr('Failure in kml extraction - May return partial results.'))
             handler.endDocument()
 
-        if extension == 'kmz':
+        if extension == '.kmz':
             kmz.close()
         else:
             kml.close()
@@ -139,6 +170,8 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
             f.append(QgsField("time_begin", QVariant.String))
             f.append(QgsField("time_end", QVariant.String))
             f.append(QgsField("time_when", QVariant.String))
+            for item in self.extData:
+                f.append(QgsField(item, QVariant.String))
             (self.sinkPt, self.dest_id_pt) = self.parameterAsSink(self.parameters,
                 self.PrmPointOutputLayer, self.context, f,
                 QgsWkbTypes.Point, epsg4326)
@@ -152,9 +185,13 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
             f.append(QgsField("name", QVariant.String))
             f.append(QgsField("folders", QVariant.String))
             f.append(QgsField("description", QVariant.String))
+            f.append(QgsField("altitude", QVariant.Double))
+            f.append(QgsField("alt_mode", QVariant.String))
             f.append(QgsField("time_begin", QVariant.String))
             f.append(QgsField("time_end", QVariant.String))
             f.append(QgsField("time_when", QVariant.String))
+            for item in self.extData:
+                f.append(QgsField(item, QVariant.String))
             (self.sinkLine, self.dest_id_line) = self.parameterAsSink(self.parameters,
                 self.PrmLineOutputLayer, self.context, f,
                 QgsWkbTypes.MultiLineString, epsg4326)
@@ -168,9 +205,13 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
             f.append(QgsField("name", QVariant.String))
             f.append(QgsField("folders", QVariant.String))
             f.append(QgsField("description", QVariant.String))
+            f.append(QgsField("altitude", QVariant.Double))
+            f.append(QgsField("alt_mode", QVariant.String))
             f.append(QgsField("time_begin", QVariant.String))
             f.append(QgsField("time_end", QVariant.String))
             f.append(QgsField("time_when", QVariant.String))
+            for item in self.extData:
+                f.append(QgsField(item, QVariant.String))
             (self.sinkPoly, self.dest_id_poly) = self.parameterAsSink(self.parameters,
                 self.PrmPolygonOutputLayer, self.context, f,
                 QgsWkbTypes.MultiPolygon, epsg4326)
@@ -206,14 +247,15 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
     addpoint = pyqtSignal(QgsFeature)
     addline = pyqtSignal(QgsFeature)
     addpolygon = pyqtSignal(QgsFeature)
-    def __init__(self, skipPt, skipLine, skipPoly, feedback):
+    def __init__(self, skipPt, skipLine, skipPoly, extDataMap):
         QObject.__init__(self)
         xml.sax.handler.ContentHandler.__init__(self)
         self.schema = {}
         self.skipPt = skipPt
         self.skipLine = skipLine
         self.skipPoly = skipPoly
-        self.feedback = feedback
+        self.extDataMap = extDataMap
+        self.extDataSize = len(extDataMap)
 
         self.inPlacemark = False
         self.resetSettings()
@@ -237,7 +279,9 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         self.inEnd = False
         self.inTimeStamp = False
         self.inWhen = False
-        self.inMultiGeometry = False
+        self.inExtendedData = False
+        self.inData = False
+        self.inDataValue = False
         self.inPoint = False
         self.inLineString = False
         self.inPolygon = False
@@ -258,6 +302,9 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         self.begin = ""
         self.end = ""
         self.when = ""
+        self.dataName = None
+        self.dataValue = ""
+        self.extendedData = {}
 
     def schemaBaseLookup(self, name):
         if name in self.schema:
@@ -340,8 +387,16 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
             elif name == "altitudeMode":
                 self.inAltitudeMode = True
                 self.altitudeMode = ""
-            elif name == "MultiGeometry":
-                self.inMultiGeometry = True
+            elif name == "Data" and self.inExtendedData:
+                self.inData = True
+                self.dataName = None
+                for (k,v) in list(attr.items()):
+                    if k == 'name':
+                        self.dataName = v
+            elif name == 'value' and self.inData:
+                self.inDataValue = True
+            elif name == "ExtendedData":
+                self.inExtendedData = True
 
     def characters(self, data):
         if self.inName: # on text within tag
@@ -364,6 +419,8 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
             self.when += data
         elif self.inAltitudeMode:
             self.altitudeMode += data
+        elif self.inDataValue:
+            self.dataValue += data
 
 
     def endElement(self, name):
@@ -430,6 +487,16 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
                 self.process(self.name, self.description, self.altitudeMode, self.begin, self.end, self.when)
                 self.inPlacemark = False
                 self.resetSettings()
+            elif name == 'Data' and self.inExtendedData:
+                self.inData = False
+            elif name == 'value' and self.inData:
+                if self.dataName:
+                    self.extendedData[self.dataName] = self.dataValue.strip()
+                self.inDataValue = False
+                self.dataValue = ''
+            elif name == 'ExtendedData':
+                self.inExtendedData = False
+                self.inData = False
         elif name == 'Folder':
             self.inFolder = False
             if len(self.folders) > 0:
@@ -503,11 +570,18 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         self.polyPts.append(pts)
 
     def process(self, name, desc, alt_mode, begin, end, when):
+        if self.extDataSize > 0:
+            extAttr = [''] * self.extDataSize
+        for key in self.extendedData.keys():
+            if key in self.extDataMap:
+                extAttr[self.extDataMap[key]] = self.extendedData[key]
         if len(self.ptPts) != 0:
             for x, pt in enumerate(self.ptPts):
                 feature = QgsFeature()
                 feature.setGeometry(QgsGeometry.fromPointXY(pt))
                 attr = [name, self.folderString(), desc, self.ptAltitude[x], alt_mode, begin, end, when]
+                if self.extDataSize > 0:
+                    attr.extend(extAttr)
                 feature.setAttributes(attr)
                 self.addpoint.emit(feature)
 
@@ -517,14 +591,18 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
                 feature.setGeometry(QgsGeometry.fromPolylineXY(self.linePts[0]))
             else:
                 feature.setGeometry(QgsGeometry.fromMultiPolylineXY(self.linePts))
-            attr = [name, self.folderString(), desc, begin, end, when]
+            attr = [name, self.folderString(), desc, 0, alt_mode, begin, end, when]
+            if self.extDataSize > 0:
+                attr.extend(extAttr)
             feature.setAttributes(attr)
             self.addline.emit(feature)
 
         if len(self.polyPts) != 0:
             feature = QgsFeature()
             feature.setGeometry(QgsGeometry.fromMultiPolygonXY(self.polyPts))
-            attr = [name, self.folderString(), desc, begin, end, when]
+            attr = [name, self.folderString(), desc, 0, alt_mode, begin, end, when]
+            if self.extDataSize > 0:
+                attr.extend(extAttr)
             feature.setAttributes(attr)
             self.addpolygon.emit(feature)
 
@@ -560,3 +638,29 @@ def coord2pts(coords):
             pts.append(QgsPointXY(lon,lat))
 
     return(pts)
+
+class PreProcessHandler(xml.sax.handler.ContentHandler, QObject):
+    def __init__(self):
+        QObject.__init__(self)
+        xml.sax.handler.ContentHandler.__init__(self)
+
+        self.extendedData = set()
+        self.inExtendedData = False
+
+    def startElement(self, name, attr):
+
+        if name == "Data" and self.inExtendedData:
+            self.dataName = None
+            for (k,v) in list(attr.items()):
+                if k == 'name':
+                    if v:
+                        self.extendedData.add(v)
+        elif name == "ExtendedData":
+            self.inExtendedData = True
+
+    def endElement(self, name):
+        if name == 'ExtendedData':
+            self.inExtendedData = False
+
+    def getExtendedDataFields(self):
+        return( list(self.extendedData) )
