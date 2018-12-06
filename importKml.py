@@ -15,7 +15,7 @@ import re
 from qgis.PyQt.QtCore import QObject, QVariant, QCoreApplication, QUrl, pyqtSignal
 from qgis.PyQt.QtGui import QIcon
 
-from qgis.core import QgsCoordinateReferenceSystem, QgsPointXY, QgsFeature, QgsGeometry, QgsFields, QgsField, QgsWkbTypes
+from qgis.core import QgsCoordinateReferenceSystem, QgsPointXY, QgsPoint, QgsLineString, QgsMultiLineString, QgsFeature, QgsGeometry, QgsFields, QgsField, QgsWkbTypes
 
 from qgis.core import (QgsProcessing,
     QgsProcessingAlgorithm,
@@ -124,7 +124,7 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
         for item in self.extData:
             self.extDataMap[item] = index
             index += 1
-        handler = PlacemarkHandler(skipPt, skipline, skipPoly, self.extDataMap)
+        handler = PlacemarkHandler(skipPt, skipline, skipPoly, self.extDataMap, feedback)
         handler.addpoint.connect(self.addpoint)
         handler.addline.connect(self.addline)
         handler.addpolygon.connect(self.addpolygon)
@@ -174,7 +174,7 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
                 f.append(QgsField(item, QVariant.String))
             (self.sinkPt, self.dest_id_pt) = self.parameterAsSink(self.parameters,
                 self.PrmPointOutputLayer, self.context, f,
-                QgsWkbTypes.Point, epsg4326)
+                QgsWkbTypes.PointZ, epsg4326)
 
         self.cntPt += 1
         self.sinkPt.addFeature(feature)
@@ -194,7 +194,7 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
                 f.append(QgsField(item, QVariant.String))
             (self.sinkLine, self.dest_id_line) = self.parameterAsSink(self.parameters,
                 self.PrmLineOutputLayer, self.context, f,
-                QgsWkbTypes.MultiLineString, epsg4326)
+                QgsWkbTypes.MultiLineStringZ, epsg4326)
 
         self.cntLine += 1
         self.sinkLine.addFeature(feature)
@@ -247,7 +247,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
     addpoint = pyqtSignal(QgsFeature)
     addline = pyqtSignal(QgsFeature)
     addpolygon = pyqtSignal(QgsFeature)
-    def __init__(self, skipPt, skipLine, skipPoly, extDataMap):
+    def __init__(self, skipPt, skipLine, skipPoly, extDataMap, feedback):
         QObject.__init__(self)
         xml.sax.handler.ContentHandler.__init__(self)
         self.schema = {}
@@ -255,6 +255,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         self.skipLine = skipLine
         self.skipPoly = skipPoly
         self.extDataMap = extDataMap
+        self.feedback = feedback
         self.extDataSize = len(extDataMap)
 
         self.inPlacemark = False
@@ -285,7 +286,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         self.inPoint = False
         self.inLineString = False
         self.inPolygon = False
-        self.linePts = []
+        self.lineStrings = [] # List of QgsLineString
         self.ptPts = []
         self.ptAltitude = []
         self.polyPts = []
@@ -429,6 +430,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
             if name == "name":
                 self.inName = False # on end title tag
                 self.name = self.name.strip()
+                #self.feedback.pushInfo(self.name)
             elif name == "description":
                 self.inDescription = False
                 self.description = self.description.strip()
@@ -517,8 +519,8 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
     def processLineString(self, coord):
         if self.skipLine:
             return
-        pts = coord2pts(coord)
-        self.linePts.append(pts)
+        lineStr = coord2ptsZ(coord)
+        self.lineStrings.append(lineStr)
 
     def processPoint(self, coord):
         if self.skipPt:
@@ -527,7 +529,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         c = coord.split(',')
         lat = 0.0
         lon = 0.0
-        altitude = None
+        altitude = 0.0
         try:
             lon = float( c[0] )
             lat = float( c[1] )
@@ -535,7 +537,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
                 altitude = float(c[2])
         except:
             return
-        pt = QgsPointXY(lon,lat)
+        pt = QgsPoint(lon,lat,altitude)
         self.ptPts.append(pt)
         self.ptAltitude.append(altitude)
 
@@ -548,13 +550,13 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
             lat = float(lat)
         except:
             return
-        altitude = None
+        altitude = 0.0
         try:
             if altitude:
                 altitude = float(altitude)
         except:
             pass
-        pt = QgsPointXY(lon,lat)
+        pt = QgsPoint(lon,lat,altitude)
         self.ptPts.append(pt)
         self.ptAltitude.append(altitude)
 
@@ -575,28 +577,38 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         for key in self.extendedData.keys():
             if key in self.extDataMap:
                 extAttr[self.extDataMap[key]] = self.extendedData[key]
+        # POINTS
         if len(self.ptPts) != 0:
             for x, pt in enumerate(self.ptPts):
                 feature = QgsFeature()
-                feature.setGeometry(QgsGeometry.fromPointXY(pt))
+                feature.setGeometry(QgsGeometry(pt))
                 attr = [name, self.folderString(), desc, self.ptAltitude[x], alt_mode, begin, end, when]
                 if self.extDataSize > 0:
                     attr.extend(extAttr)
                 feature.setAttributes(attr)
                 self.addpoint.emit(feature)
-
-        if len(self.linePts) != 0:
+        
+        # LINES - lineStrings is a list of QgsLineString
+        if len(self.lineStrings) != 0:
             feature = QgsFeature()
-            if len(self.linePts) == 1:
-                feature.setGeometry(QgsGeometry.fromPolylineXY(self.linePts[0]))
+            if len(self.lineStrings) == 1:
+                feature.setGeometry(QgsGeometry(self.lineStrings[0]))
             else:
-                feature.setGeometry(QgsGeometry.fromMultiPolylineXY(self.linePts))
+                g = QgsMultiLineString()
+                for lineStr in self.lineStrings:
+                    g.addGeometry(lineStr)
+                feature.setGeometry(QgsGeometry(g))
             attr = [name, self.folderString(), desc, 0, alt_mode, begin, end, when]
             if self.extDataSize > 0:
                 attr.extend(extAttr)
             feature.setAttributes(attr)
             self.addline.emit(feature)
 
+        # POLYGONS
+        '''
+        p = QgsPolygon()
+        p.setExteriorRing(linestring)
+        '''
         if len(self.polyPts) != 0:
             feature = QgsFeature()
             feature.setGeometry(QgsGeometry.fromMultiPolygonXY(self.polyPts))
@@ -605,7 +617,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
                 attr.extend(extAttr)
             feature.setAttributes(attr)
             self.addpolygon.emit(feature)
-
+            
 def coord2pts(coords):
     pts = []
     coords = coords.strip()
@@ -638,6 +650,47 @@ def coord2pts(coords):
             pts.append(QgsPointXY(lon,lat))
 
     return(pts)
+
+def coord2ptsZ(coords):
+    lineStr = QgsLineString()
+    coords = coords.strip()
+    clist = re.split('\s+', coords)
+
+    for pt in clist:
+        c = pt.split(',')
+        if len(c) >= 6:
+            '''This is invalid KML syntax, but given some KMLs have been formatted
+            this way the invalid exception is looked for. There should be a space
+            between line string coordinates. This looks for a comma between them and
+            also assumes it is formatted as lat,lon,altitude,lat,lon,altitude...'''
+            i = 0
+            while i < len(c) - 1:
+                try:
+                    lon = float(c[i])
+                    lat = float(c[i+1])
+                except:
+                    lon = 0.0
+                    lat = 0.0
+                try:
+                    altitude = float(c[i+2])
+                except:
+                    altitude = 0
+                lineStr.addVertex(QgsPoint(lon,lat,altitude))
+                i += 3
+        else:
+            altitude = 0
+            try:
+                lon = float(c[0])
+                lat = float(c[1])
+                if len(c) >= 3:
+                    altitude = float(c[2])
+            except:
+                lon = 0.0
+                lat = 0.0
+                
+            lineStr.addVertex(QgsPoint(lon,lat,altitude))
+
+    return(lineStr)
 
 class PreProcessHandler(xml.sax.handler.ContentHandler, QObject):
     def __init__(self):
