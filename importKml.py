@@ -15,7 +15,7 @@ import re
 from qgis.PyQt.QtCore import QObject, QVariant, QCoreApplication, QUrl, pyqtSignal
 from qgis.PyQt.QtGui import QIcon
 
-from qgis.core import QgsCoordinateReferenceSystem, QgsPointXY, QgsPoint, QgsLineString, QgsMultiLineString, QgsFeature, QgsGeometry, QgsFields, QgsField, QgsWkbTypes
+from qgis.core import QgsCoordinateReferenceSystem, QgsPoint, QgsLineString, QgsMultiLineString, QgsPolygon, QgsMultiPolygon, QgsFeature, QgsGeometry, QgsFields, QgsField, QgsWkbTypes
 
 from qgis.core import (QgsProcessing,
     QgsProcessingAlgorithm,
@@ -77,7 +77,7 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
                 kmz = ZipFile(filename, 'r')
                 kml = kmz.open('doc.kml', 'r')
             elif extension == '.kml':
-                kml = open(filename, 'rb')
+                kml = open(filename, encoding="utf-8", errors="backslashreplace")
             else:
                 msg = "Invalid extension: Should be kml or kmz"
                 feedback.reportError(msg)
@@ -114,7 +114,7 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
             kmz = ZipFile(filename, 'r')
             kml = kmz.open('doc.kml', 'r')
         else:
-            kml = open(filename, 'rb')
+            kml = open(filename, encoding="utf-8", errors="backslashreplace")
         
         # Set up the handler for doing the main processing
         self.extData = preprocess.getExtendedDataFields()
@@ -214,7 +214,7 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
                 f.append(QgsField(item, QVariant.String))
             (self.sinkPoly, self.dest_id_poly) = self.parameterAsSink(self.parameters,
                 self.PrmPolygonOutputLayer, self.context, f,
-                QgsWkbTypes.MultiPolygon, epsg4326)
+                QgsWkbTypes.MultiPolygonZ, epsg4326)
         self.cntPoly += 1
         self.sinkPoly.addFeature(feature)
 
@@ -289,7 +289,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         self.lineStrings = [] # List of QgsLineString
         self.ptPts = []
         self.ptAltitude = []
-        self.polyPts = []
+        self.polygons = []
         self.innerPoly = []
         self.outerPoly = ""
         self.folder = ""
@@ -430,7 +430,6 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
             if name == "name":
                 self.inName = False # on end title tag
                 self.name = self.name.strip()
-                #self.feedback.pushInfo(self.name)
             elif name == "description":
                 self.inDescription = False
                 self.description = self.description.strip()
@@ -469,6 +468,8 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
                 self.inPolygon = False
                 self.inOuterBoundary = False
                 self.inInnerBoundary = False
+                self.outerPoly = ""
+                self.innerPoly = []
             elif name == "outerBoundaryIs":
                 self.inOuterBoundary = False
             elif name == "innerBoundaryIs":
@@ -563,13 +564,16 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
     def processPolygon(self):
         if self.skipPoly:
             return
-        pts = []
-        pts.append(coord2pts(self.outerPoly))
+        interior_ring = []
+        poly = QgsPolygon()
+        outerLineStr = coord2ptsZ(self.outerPoly)
+        poly.setExteriorRing(outerLineStr)
         if len(self.innerPoly) > 0:
             for p in self.innerPoly:
-                p2 = coord2pts(p)
-                pts.append(p2)
-        self.polyPts.append(pts)
+                innerLineStr = coord2ptsZ(p)
+                interior_ring.append(innerLineStr)
+            poly.setInteriorRings(interior_ring)
+        self.polygons.append(poly)
 
     def process(self, name, desc, alt_mode, begin, end, when):
         if self.extDataSize > 0:
@@ -605,51 +609,20 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
             self.addline.emit(feature)
 
         # POLYGONS
-        '''
-        p = QgsPolygon()
-        p.setExteriorRing(linestring)
-        '''
-        if len(self.polyPts) != 0:
+        if len(self.polygons) != 0:
             feature = QgsFeature()
-            feature.setGeometry(QgsGeometry.fromMultiPolygonXY(self.polyPts))
+            if len(self.polygons) == 1:
+                feature.setGeometry(QgsGeometry(self.polygons[0]))
+            else:
+                g = QgsMultiPolygon()
+                for poly in self.polygons:
+                    g.addGeometry(poly)
+                feature.setGeometry(QgsGeometry(g))
             attr = [name, self.folderString(), desc, 0, alt_mode, begin, end, when]
             if self.extDataSize > 0:
                 attr.extend(extAttr)
             feature.setAttributes(attr)
             self.addpolygon.emit(feature)
-            
-def coord2pts(coords):
-    pts = []
-    coords = coords.strip()
-    clist = re.split('\s+', coords)
-
-    for pt in clist:
-        c = pt.split(',')
-        if len(c) >= 6:
-            '''This is invalid KML syntax, but given some KMLs have been formatted
-            this way the invalid exception is looked for. There should be a space
-            between line string coordinates. This looks for a comma between them and
-            also assumes it is formatted as lat,lon,altitude,lat,lon,altitude...'''
-            i = 0
-            while i < len(c) - 1:
-                try:
-                    lon = float(c[i])
-                    lat = float(c[i+1])
-                except:
-                    lon = 0.0
-                    lat = 0.0
-                pts.append(QgsPointXY(lon,lat))
-                i += 3
-        else:
-            try:
-                lon = float(c[0])
-                lat = float(c[1])
-            except:
-                lon = 0.0
-                lat = 0.0
-            pts.append(QgsPointXY(lon,lat))
-
-    return(pts)
 
 def coord2ptsZ(coords):
     lineStr = QgsLineString()
