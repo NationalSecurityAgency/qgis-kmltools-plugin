@@ -317,6 +317,8 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         self.schema[name] = parent
 
     def startElement(self, name, attr):
+        if name.startswith('kml:'):
+            name = name[4:]
         if name == "Schema":
             n = None
             p = None
@@ -425,6 +427,8 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
 
 
     def endElement(self, name):
+        if name.startswith('kml:'):
+            name = name[4:]
         name = self.schemaBaseLookup(name)
         if self.inPlacemark:
             if name == "name":
