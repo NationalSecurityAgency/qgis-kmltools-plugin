@@ -20,6 +20,7 @@ from qgis.core import QgsCoordinateReferenceSystem, QgsPoint, QgsLineString, Qgs
 from qgis.core import (QgsProcessing,
     QgsProcessingAlgorithm,
     QgsProcessingParameterFile,
+    QgsProcessingException,
     QgsProcessingParameterFeatureSink)
 
 from zipfile import ZipFile

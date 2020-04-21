@@ -2,7 +2,7 @@
 name=KML Tools
 qgisMinimumVersion=3.2
 description=Fast KML/KMZ importer with description field expansion
-version=3.0.8
+version=3.0.9
 author=C Hamilton
 email=adenaculture@gmail.com
 about=
@@ -16,6 +16,7 @@ icon=icon.png
 experimental=False
 deprecated=False
 changelog=
+    3.0.9 - Fixed QgsProcessingException undefined error
     3.0.8 - Support kml prefix
     3.0.7 - Added Z dimension for polygons and fixed a bug
     3.0.6 - Added Z dimension for points and lines
