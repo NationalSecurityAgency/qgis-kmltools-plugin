@@ -22,17 +22,15 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 from qgis.core import QgsApplication
 import processing
-import webbrowser
 
 import os
 from .provider import KmlToolsProvider
-from .htmlExpansionDialog import HTMLExpansionDialog
 
 class KMLTools(object):
     def __init__(self, iface):
         self.iface = iface
         self.htmlDialog = None
-        self.provider = KmlToolsProvider()        
+        self.provider = KmlToolsProvider()
 
     def initGui(self):
         """Create the menu & tool bar items within QGIS"""
@@ -54,7 +52,7 @@ class KMLTools(object):
         self.helpAction = QAction(icon, "Help", self.iface.mainWindow())
         self.helpAction.triggered.connect(self.help)
         self.iface.addPluginToVectorMenu('KML Tools', self.helpAction)
-        
+
         # Add the processing provider
         QgsApplication.processingRegistry().addProvider(self.provider)
 
@@ -66,21 +64,20 @@ class KMLTools(object):
         self.iface.removeToolBarIcon(self.kmlAction)
         self.iface.removeToolBarIcon(self.htmlDescAction)
         QgsApplication.processingRegistry().removeProvider(self.provider)
-    
+
     def showDialog(self):
         """Display the KML Dialog window."""
-        results = processing.execAlgorithmDialog('kmltools:importkml', {})
-    
+        processing.execAlgorithmDialog('kmltools:importkml', {})
+
     def htmlDescDialog(self):
         """Display the KML Dialog window."""
         if not self.htmlDialog:
+            from .htmlExpansionDialog import HTMLExpansionDialog
             self.htmlDialog = HTMLExpansionDialog(self.iface)
         self.htmlDialog.show()
-        
+
     def help(self):
         '''Display a help page'''
+        import webbrowser
         url = QUrl.fromLocalFile(os.path.dirname(__file__) + "/index.html").toString()
         webbrowser.open(url, new=2)
-        
-        
-        

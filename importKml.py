@@ -15,23 +15,26 @@ import re
 from qgis.PyQt.QtCore import QObject, QVariant, QCoreApplication, QUrl, pyqtSignal
 from qgis.PyQt.QtGui import QIcon
 
-from qgis.core import QgsCoordinateReferenceSystem, QgsPoint, QgsLineString, QgsMultiLineString, QgsPolygon, QgsMultiPolygon, QgsFeature, QgsGeometry, QgsFields, QgsField, QgsWkbTypes
+from qgis.core import (
+    QgsCoordinateReferenceSystem, QgsPoint,
+    QgsLineString, QgsMultiLineString, QgsPolygon, QgsMultiPolygon,
+    QgsFeature, QgsGeometry, QgsFields, QgsField, QgsWkbTypes)
 
-from qgis.core import (QgsProcessing,
+from qgis.core import (
     QgsProcessingAlgorithm,
     QgsProcessingParameterFile,
     QgsProcessingException,
     QgsProcessingParameterFeatureSink)
 
 from zipfile import ZipFile
-import xml.sax, xml.sax.handler
-#import traceback
+import xml.sax
+import xml.sax.handler
+# import traceback
 
 epsg4326 = QgsCoordinateReferenceSystem("EPSG:4326")
 
 def tr(string):
     return QCoreApplication.translate('Processing', string)
-
 
 class ImportKmlAlgorithm(QgsProcessingAlgorithm):
     """
@@ -53,19 +56,19 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
                 self.PrmPointOutputLayer,
                 tr('Output point layer'),
                 optional=True)
-            )
+        )
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.PrmLineOutputLayer,
                 tr('Output line layer'),
                 optional=True)
-            )
+        )
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.PrmPolygonOutputLayer,
                 tr('Output polygon layer'),
                 optional=True)
-            )
+        )
 
     def processAlgorithm(self, parameters, context, feedback):
         self.parameters = parameters
@@ -83,7 +86,7 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
                 msg = "Invalid extension: Should be kml or kmz"
                 feedback.reportError(msg)
                 raise QgsProcessingException(msg)
-        except:
+        except Exception:
             msg = "Failed to open file"
             feedback.reportError(msg)
             raise QgsProcessingException(msg)
@@ -103,7 +106,7 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
             input_source.setByteStream(kml)
             input_source.setEncoding('utf-8')
             parser.parse(input_source)
-        except:
+        except Exception:
             preprocess.endDocument()
         # Reset the KML/KMZ file to the beginning. The handler seems to automatically close the file
         # which is why we are reopening it.
@@ -116,7 +119,7 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
             kml = kmz.open('doc.kml', 'r')
         else:
             kml = open(filename, encoding="utf-8", errors="backslashreplace")
-        
+
         # Set up the handler for doing the main processing
         self.extData = preprocess.getExtendedDataFields()
         self.extData.sort()
@@ -135,7 +138,7 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
             input_source.setByteStream(kml)
             input_source.setEncoding('utf-8')
             parser.parse(input_source)
-        except:
+        except Exception:
             '''s = traceback.format_exc()
             feedback.pushInfo(s)'''
             feedback.pushInfo(tr('Failure in kml extraction - May return partial results.'))
@@ -173,7 +176,8 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
             f.append(QgsField("time_when", QVariant.String))
             for item in self.extData:
                 f.append(QgsField(item, QVariant.String))
-            (self.sinkPt, self.dest_id_pt) = self.parameterAsSink(self.parameters,
+            (self.sinkPt, self.dest_id_pt) = self.parameterAsSink(
+                self.parameters,
                 self.PrmPointOutputLayer, self.context, f,
                 QgsWkbTypes.PointZ, epsg4326)
 
@@ -193,7 +197,8 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
             f.append(QgsField("time_when", QVariant.String))
             for item in self.extData:
                 f.append(QgsField(item, QVariant.String))
-            (self.sinkLine, self.dest_id_line) = self.parameterAsSink(self.parameters,
+            (self.sinkLine, self.dest_id_line) = self.parameterAsSink(
+                self.parameters,
                 self.PrmLineOutputLayer, self.context, f,
                 QgsWkbTypes.MultiLineStringZ, epsg4326)
 
@@ -213,7 +218,8 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
             f.append(QgsField("time_when", QVariant.String))
             for item in self.extData:
                 f.append(QgsField(item, QVariant.String))
-            (self.sinkPoly, self.dest_id_poly) = self.parameterAsSink(self.parameters,
+            (self.sinkPoly, self.dest_id_poly) = self.parameterAsSink(
+                self.parameters,
                 self.PrmPolygonOutputLayer, self.context, f,
                 QgsWkbTypes.MultiPolygonZ, epsg4326)
         self.cntPoly += 1
@@ -235,7 +241,7 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
         return 'vectorconversion'
 
     def helpUrl(self):
-        file = os.path.dirname(__file__)+'/index.html'
+        file = os.path.dirname(__file__) + '/index.html'
         if not os.path.exists(file):
             return ''
         return QUrl.fromLocalFile(file).toString(QUrl.FullyEncoded)
@@ -243,11 +249,11 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
     def createInstance(self):
         return ImportKmlAlgorithm()
 
-
 class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
     addpoint = pyqtSignal(QgsFeature)
     addline = pyqtSignal(QgsFeature)
     addpolygon = pyqtSignal(QgsFeature)
+
     def __init__(self, skipPt, skipLine, skipPoly, extDataMap, feedback):
         QObject.__init__(self)
         xml.sax.handler.ContentHandler.__init__(self)
@@ -287,7 +293,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         self.inPoint = False
         self.inLineString = False
         self.inPolygon = False
-        self.lineStrings = [] # List of QgsLineString
+        self.lineStrings = []  # List of QgsLineString
         self.ptPts = []
         self.ptAltitude = []
         self.polygons = []
@@ -310,7 +316,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
 
     def schemaBaseLookup(self, name):
         if name in self.schema:
-            return( self.schema[name] )
+            return(self.schema[name])
         return(name)
 
     def addSchema(self, name, parent):
@@ -323,7 +329,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         if name == "Schema":
             n = None
             p = None
-            for (k,v) in list(attr.items()):
+            for (k, v) in list(attr.items()):
                 if k == 'name':
                     n = v
                 if k == 'parent':
@@ -394,7 +400,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
             elif name == "Data" and self.inExtendedData:
                 self.inData = True
                 self.dataName = None
-                for (k,v) in list(attr.items()):
+                for (k, v) in list(attr.items()):
                     if k == 'name':
                         self.dataName = v
             elif name == 'value' and self.inData:
@@ -403,8 +409,8 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
                 self.inExtendedData = True
 
     def characters(self, data):
-        if self.inName: # on text within tag
-            self.name += data # save text if in title
+        if self.inName:  # on text within tag
+            self.name += data  # save text if in title
         elif self.inDescription:
             self.description += data
         elif self.inCoordinates:
@@ -426,14 +432,13 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         elif self.inDataValue:
             self.dataValue += data
 
-
     def endElement(self, name):
         if name.startswith('kml:'):
             name = name[4:]
         name = self.schemaBaseLookup(name)
         if self.inPlacemark:
             if name == "name":
-                self.inName = False # on end title tag
+                self.inName = False  # on end title tag
                 self.name = self.name.strip()
             elif name == "description":
                 self.inDescription = False
@@ -511,7 +516,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
                 del self.folders[-1]
         elif self.inFolder:
             if name == 'name':
-                self.inName = False # on end title tag
+                self.inName = False  # on end title tag
                 self.inFolder = False
                 self.name = self.name.strip()
                 self.folders.append(self.name)
@@ -537,13 +542,13 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         lon = 0.0
         altitude = 0.0
         try:
-            lon = float( c[0] )
-            lat = float( c[1] )
+            lon = float(c[0])
+            lat = float(c[1])
             if len(c) >= 3:
                 altitude = float(c[2])
-        except:
+        except Exception:
             return
-        pt = QgsPoint(lon,lat,altitude)
+        pt = QgsPoint(lon, lat, altitude)
         self.ptPts.append(pt)
         self.ptAltitude.append(altitude)
 
@@ -554,15 +559,15 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         try:
             lon = float(lon)
             lat = float(lat)
-        except:
+        except Exception:
             return
         altitude = 0.0
         try:
             if altitude:
                 altitude = float(altitude)
-        except:
+        except Exception:
             pass
-        pt = QgsPoint(lon,lat,altitude)
+        pt = QgsPoint(lon, lat, altitude)
         self.ptPts.append(pt)
         self.ptAltitude.append(altitude)
 
@@ -596,7 +601,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
                     attr.extend(extAttr)
                 feature.setAttributes(attr)
                 self.addpoint.emit(feature)
-        
+
         # LINES - lineStrings is a list of QgsLineString
         if len(self.lineStrings) != 0:
             feature = QgsFeature()
@@ -645,15 +650,15 @@ def coord2ptsZ(coords):
             while i < len(c) - 1:
                 try:
                     lon = float(c[i])
-                    lat = float(c[i+1])
-                except:
+                    lat = float(c[i + 1])
+                except Exception:
                     lon = 0.0
                     lat = 0.0
                 try:
-                    altitude = float(c[i+2])
-                except:
+                    altitude = float(c[i + 2])
+                except Exception:
                     altitude = 0
-                lineStr.addVertex(QgsPoint(lon,lat,altitude))
+                lineStr.addVertex(QgsPoint(lon, lat, altitude))
                 i += 3
         else:
             altitude = 0
@@ -662,11 +667,11 @@ def coord2ptsZ(coords):
                 lat = float(c[1])
                 if len(c) >= 3:
                     altitude = float(c[2])
-            except:
+            except Exception:
                 lon = 0.0
                 lat = 0.0
-                
-            lineStr.addVertex(QgsPoint(lon,lat,altitude))
+
+            lineStr.addVertex(QgsPoint(lon, lat, altitude))
 
     return(lineStr)
 
@@ -682,7 +687,7 @@ class PreProcessHandler(xml.sax.handler.ContentHandler, QObject):
 
         if name == "Data" and self.inExtendedData:
             self.dataName = None
-            for (k,v) in list(attr.items()):
+            for (k, v) in list(attr.items()):
                 if k == 'name':
                     if v:
                         self.extendedData.add(v)
@@ -694,4 +699,4 @@ class PreProcessHandler(xml.sax.handler.ContentHandler, QObject):
             self.inExtendedData = False
 
     def getExtendedDataFields(self):
-        return( list(self.extendedData) )
+        return(list(self.extendedData))
