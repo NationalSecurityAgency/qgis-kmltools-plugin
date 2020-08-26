@@ -34,21 +34,28 @@ class KMLTools(object):
 
     def initGui(self):
         """Create the menu & tool bar items within QGIS"""
-        icon = QIcon(os.path.dirname(__file__) + "/icon.png")
+        icon = QIcon(os.path.dirname(__file__) + "/icons/icon.png")
         self.kmlAction = QAction(icon, "Import KML/KMZ", self.iface.mainWindow())
         self.kmlAction.triggered.connect(self.showDialog)
         self.kmlAction.setCheckable(False)
         self.iface.addToolBarIcon(self.kmlAction)
         self.iface.addPluginToVectorMenu("KML Tools", self.kmlAction)
+        # Export KML Menu
+        icon = QIcon(os.path.dirname(__file__) + "/icons/save_kml.png")
+        self.kmlExportAction = QAction(icon, "Export KMZ", self.iface.mainWindow())
+        self.kmlExportAction.triggered.connect(self.exportKMZ)
+        self.kmlExportAction.setCheckable(False)
+        self.iface.addToolBarIcon(self.kmlExportAction)
+        self.iface.addPluginToVectorMenu("KML Tools", self.kmlExportAction)
         # Expansion of HTML description field
-        icon = QIcon(os.path.dirname(__file__) + "/html.png")
+        icon = QIcon(os.path.dirname(__file__) + "/icons/html.png")
         self.htmlDescAction = QAction(icon, "Expand HTML description field", self.iface.mainWindow())
         self.htmlDescAction.triggered.connect(self.htmlDescDialog)
         self.htmlDescAction.setCheckable(False)
         self.iface.addToolBarIcon(self.htmlDescAction)
         self.iface.addPluginToVectorMenu("KML Tools", self.htmlDescAction)
         # Help
-        icon = QIcon(os.path.dirname(__file__) + '/help.png')
+        icon = QIcon(os.path.dirname(__file__) + '/icons/help.png')
         self.helpAction = QAction(icon, "Help", self.iface.mainWindow())
         self.helpAction.triggered.connect(self.help)
         self.iface.addPluginToVectorMenu('KML Tools', self.helpAction)
@@ -59,15 +66,21 @@ class KMLTools(object):
     def unload(self):
         """Remove the plugin menu item and icon from QGIS GUI."""
         self.iface.removePluginVectorMenu("KML Tools", self.kmlAction)
+        self.iface.removePluginVectorMenu("KML Tools", self.kmlExportAction)
         self.iface.removePluginVectorMenu("KML Tools", self.htmlDescAction)
         self.iface.removePluginVectorMenu("KML Tools", self.helpAction)
         self.iface.removeToolBarIcon(self.kmlAction)
+        self.iface.removeToolBarIcon(self.kmlExportAction)
         self.iface.removeToolBarIcon(self.htmlDescAction)
         QgsApplication.processingRegistry().removeProvider(self.provider)
 
     def showDialog(self):
         """Display the KML Dialog window."""
         processing.execAlgorithmDialog('kmltools:importkml', {})
+
+    def exportKMZ(self):
+        """Display the KML Dialog window."""
+        processing.execAlgorithmDialog('kmltools:exportkmz', {})
 
     def htmlDescDialog(self):
         """Display the KML Dialog window."""

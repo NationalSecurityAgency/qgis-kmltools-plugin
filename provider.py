@@ -1,8 +1,9 @@
 import os
 from qgis.core import QgsProcessingProvider
 from qgis.PyQt.QtGui import QIcon
-from .htmlExpansionDialog import HTMLExpansionAlgorithm
+from .htmlExpansionAlgorithm import HTMLExpansionAlgorithm
 from .importKml import ImportKmlAlgorithm
+from .exportKmz import ExportKmzAlgorithm
 
 class KmlToolsProvider(QgsProcessingProvider):
 
@@ -12,9 +13,10 @@ class KmlToolsProvider(QgsProcessingProvider):
     def loadAlgorithms(self):
         self.addAlgorithm(HTMLExpansionAlgorithm())
         self.addAlgorithm(ImportKmlAlgorithm())
+        self.addAlgorithm(ExportKmzAlgorithm())
         
     def icon(self):
-        return QIcon(os.path.dirname(__file__) + '/icon.png')
+        return QIcon(os.path.dirname(__file__) + '/icons/icon.png')
         
     def id(self):
         return 'kmltools'

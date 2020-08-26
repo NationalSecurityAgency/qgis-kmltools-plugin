@@ -2,7 +2,7 @@
 name=KML Tools
 qgisMinimumVersion=3.2
 description=Fast KML/KMZ importer with description field expansion
-version=3.0.9
+version=3.0.10
 author=C Hamilton
 email=adenaculture@gmail.com
 about=
@@ -12,7 +12,7 @@ repository=https://github.com/NationalSecurityAgency/qgis-kmltools-plugin
 tags=kml,kmz,points,lines,polygons,conversion,html
 homepage=https://github.com/NationalSecurityAgency/qgis-kmltools-plugin
 category=Vector
-icon=icon.png
+icon=icons/icon.png
 experimental=False
 deprecated=False
 changelog=
