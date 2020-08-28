@@ -1,0 +1,79 @@
+<head>
+<style>
+body {
+    font:13.34px helvetica,arial,freesans,clean,sans-serif;
+    color:black;
+    line-height:1.4em;
+    background-color: #F8F8F8;
+    padding: 0.7em;
+}
+pre {
+    margin:1em 0;
+    font-size:12px;
+    background-color:#eee;
+    border:1px solid #ddd;
+    padding:5px;
+    line-height:1.5em;
+    color:#444;
+    overflow:auto;
+    -webkit-box-shadow:rgba(0,0,0,0.07) 0 1px 2px inset;
+    -webkit-border-radius:3px;
+    -moz-border-radius:3px;border-radius:3px;
+}
+pre code {
+    padding:0;
+    font-size:12px;
+    background-color:#eee;
+    border:none;
+}
+code {
+    font-size:12px;
+    background-color:#f8f8ff;
+    color:#444;
+    padding:0 .2em;
+    border:1px solid #dedede;
+}
+</style>
+</head>
+<body>
+<h1>QGIS KML Tools</h1>
+<p>The native QGIS importer creates separate layers for each folder within a KML/KMZ. If there are hundreds or thousands of layers, the import can be very slow, crash QGIS, or create an undesirable number of layers. This plugin only creates one point layer, one line layer, and one polygon layer. This makes the KML/KMZ import very quick. It adds the nested folder structure to a field in the QGIS layer which can then be used for sorting and filtering based on the previous folders in the KML.</p>
+<p><strong><em>KML Tools</em></strong> can be found in the QGIS menu under <strong><em>Vector-&gt;KML Tools</em></strong>, on the tool bar, or in the Processing Toolbox under <strong><em>KML Tools</em></strong>*. It has three tools.</p>
+<p><img src="icons/import.png" alt="Import KML/KMZ"> <strong><em>Import KML/KMZ</em></strong> - This functions as the name implies. It's interface is simple. Click on the ... button on the right of <strong><em>Import KML/KMZ file</em></strong> to select your file. Choose whether you want to include points, lines or polygons from the KML as QGIS output layers. If the KML file does not contain one of these geometry types, then the associated layer will not be created anyway. </p>
+<div style="text-align:center"><img src="doc/import.jpg" alt="Import KML/KMZ"></div>
+
+<p><img src="icons/html.png" alt="HTML description expansion"> <strong><em>Expand HTML description field</em></strong> - This attempts to expand HTML tag/value pairs into separate fields. Before this can be run, the KML needs to be imported into QGIS with <strong><em>Import KML/KMZ</em></strong>. Next select from <strong><em>How to expand the description field</em></strong> option one of the following:</p>
+<ul>
+<li><strong><em>Expand from a 2 column HTML table</em></strong> - If the KML has a description entry that contains an HTML table with two columns were the first column represents a table or field name and the second column its value, then this option will parse these fields and add them to a new attribute table field.  This is an example of data that it expands.</li>
+</ul>
+<pre><code>    &lt;table&gt;
+        &lt;tr&gt;&lt;td&gt;City&lt;/td&gt;&lt;td&gt;Provo&lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td&gt;State&lt;/td&gt;&lt;td&gt;Utah&lt;/td&gt;&lt;/tr&gt;
+    &lt;/table&gt;
+</code></pre>
+
+<ul>
+<li><strong><em>Expand from "tag = value" pairs</em></strong> - If the KML has a description entry that contains "tag = value" entries separated by new paragraphs, line breaks, or entries in a single table column, then this option will parse these fields and add them to a new attribute table field. This is an example of data that it expands.</li>
+</ul>
+<pre><code>    &lt;b&gt;City&lt;b/&gt; = Provo&lt;br/&gt;
+    &lt;b&gt;State&lt;b/&gt; = Utah&lt;br/&gt;
+</code></pre>
+
+<ul>
+<li><strong><em>Expand from "tag: value" pairs</em></strong> - If the KML has a description entry that contains "tag: value" entries separated by new paragraphs, line breaks, or entries in a single table column, then this option will parse these fields and add them to a new attribute table field. This is an example of data that it expands.</li>
+</ul>
+<pre><code>    &lt;b&gt;City:&lt;b/&gt; Provo&lt;br/&gt;
+    &lt;b&gt;State:&lt;b/&gt; Utah&lt;br/&gt;
+</code></pre>
+
+<p>This can either be run from the menu, tool bar, or <em>Processing Toolbox</em>; however, running it from the menu or tool bar provides user interaction during the conversion to select which fields they want to expand. During expansion some of the expansion names may already exist in the table. If that is the case then an '_' followed by a number is appended to the end.</p>
+<div style="text-align:center"><img src="doc/html.jpg" alt="HTML Expander"></div>
+
+<p>Select the input layer and the field that has an HTML table of tag/value rows. Press <strong><em>OK</em></strong> and it will look through all records and find all possible tag values. If it finds tags, then it will pop up a menu for you to select which tags you want expanded into table entries like this.</p>
+<div style="text-align:center"><img src="doc/html2.jpg" alt="HTML Expander"></div>
+
+<p>The <strong><em>Processing Toolbox</em></strong> version of <strong><em>Expand HTML description table</em></strong> operates a little differently because processing routines cannot be interactive. In this case it will expand all possible tags that are found. Optionally, you can include a list of name tags you want expanded if you know them ahead of time. This is the Processing expansion dialog box.</p>
+<div style="text-align:center"><img src="doc/html3.jpg" alt="HTML Expander"></div>
+
+<p>Because there is no standard way of including additional information in the KML description entry, it is difficult to come up with a way to expand all cases. Right now this just works with two column HTML tables, <strong><em>tag=value</em></strong>, and <strong><em>tag: value</em></strong> pairs, but please let us know if there are other description formats that you would like us to tackle.</p>
+<p>This plugin may not be for everyone as it does not implement the entire KML specification, but if you find that it is missing some aspect of KML, let us know and perhaps we can add it.</p></body>
