@@ -16,7 +16,7 @@ class KmlToolsProvider(QgsProcessingProvider):
         self.addAlgorithm(ExportKmzAlgorithm())
         
     def icon(self):
-        return QIcon(os.path.dirname(__file__) + '/icons/icon.png')
+        return QIcon(os.path.dirname(__file__) + '/icons/import.png')
         
     def id(self):
         return 'kmltools'

@@ -34,14 +34,14 @@ class KMLTools(object):
 
     def initGui(self):
         """Create the menu & tool bar items within QGIS"""
-        icon = QIcon(os.path.dirname(__file__) + "/icons/icon.png")
+        icon = QIcon(os.path.dirname(__file__) + "/icons/import.png")
         self.kmlAction = QAction(icon, "Import KML/KMZ", self.iface.mainWindow())
         self.kmlAction.triggered.connect(self.showDialog)
         self.kmlAction.setCheckable(False)
         self.iface.addToolBarIcon(self.kmlAction)
         self.iface.addPluginToVectorMenu("KML Tools", self.kmlAction)
         # Export KML Menu
-        icon = QIcon(os.path.dirname(__file__) + "/icons/save_kml.png")
+        icon = QIcon(os.path.dirname(__file__) + "/icons/export.png")
         self.kmlExportAction = QAction(icon, "Export KMZ", self.iface.mainWindow())
         self.kmlExportAction.triggered.connect(self.exportKMZ)
         self.kmlExportAction.setCheckable(False)

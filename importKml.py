@@ -229,7 +229,7 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
         return 'importkml'
 
     def icon(self):
-        return QIcon(os.path.dirname(__file__) + '/icons/icon.png')
+        return QIcon(os.path.dirname(__file__) + '/icons/import.png')
 
     def displayName(self):
         return tr('Import KML/KMZ')
