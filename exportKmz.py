@@ -1,12 +1,11 @@
 import os
-import re
-from qgis.PyQt.QtCore import QUrl, QTime, QDateTime, QDate, QSize
+import math
+from qgis.PyQt.QtCore import QUrl, QTime, QDateTime, QDate, QSize, QPointF
 from qgis.PyQt.QtGui import QIcon
 
 from qgis.core import (
-    QgsCoordinateReferenceSystem, QgsPoint, QgsRenderContext,
-    QgsLineString, QgsMultiLineString, QgsPolygon, QgsMultiPolygon,
-    QgsFeature, QgsGeometry, QgsFields, QgsField, QgsWkbTypes)
+    QgsCoordinateTransform, QgsCoordinateReferenceSystem,
+    QgsProject, QgsRenderContext, QgsWkbTypes)
 
 from qgis.core import (
     QgsProcessing,
@@ -16,19 +15,20 @@ from qgis.core import (
     QgsProcessingParameterNumber,
     QgsProcessingParameterDefinition,
     QgsProcessingParameterFileDestination,
-    QgsProcessingException,
     QgsProcessingParameterField,
     QgsProcessingParameterFeatureSource)
-    
+
 import dateutil.parser
 import datetime
 from xml.sax.saxutils import escape
 import simplekml
-import traceback
+# import traceback
 import tempfile
+import utils
 
 def qcolor2kmlcolor(color):
     return('{:02x}{:02x}{:02x}{:02x}'.format(color.alpha(), color.blue(), color.green(), color.red()))
+
 
 ALTITUDE_MODES = ['clampToGround', 'relativeToGround', 'absolute']
 
@@ -91,7 +91,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterBoolean(
                 self.PrmExportStyle,
                 'Export style for single and categorized symbols',
-                True,
+                False,
                 optional=True)
         )
         self.addParameter(
@@ -105,7 +105,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterEnum(
                 self.PrmAltitudeInterpretation,
                 'Specify whether to include altitude in the KMZ (must be in meters)',
-                options=['Don\'t use altitude','Use QGIS geometry Z value if available','Use altitude from one of the feature\'s attributes'],
+                options=['Don\'t use altitude', 'Use QGIS geometry Z value if present', 'Use altitude from one of the feature\'s attributes'],
                 defaultValue=1,
                 optional=True)
         )
@@ -140,7 +140,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterField(
                 self.PrmDateTimeStampField,
-                'Date/Time stamp field (also see advanced parameters)',
+                'Date/Time stamp field (see advanced parameters)',
                 parentLayerParameterName=self.PrmInputLayer,
                 type=QgsProcessingParameterField.Any,
                 defaultValue='time_when',
@@ -150,7 +150,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterField(
                 self.PrmDateTimeBeginField,
-                'Date/Time span begin field (also see advanced parameters)',
+                'Date/Time span begin field (see advanced parameters)',
                 parentLayerParameterName=self.PrmInputLayer,
                 type=QgsProcessingParameterField.Any,
                 defaultValue='time_begin',
@@ -160,7 +160,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterField(
                 self.PrmDateTimeEndField,
-                'Date/Time span end field (also see advanced parameters)',
+                'Date/Time span end field (see advanced parameters)',
                 parentLayerParameterName=self.PrmInputLayer,
                 type=QgsProcessingParameterField.Any,
                 defaultValue='time_end',
@@ -181,7 +181,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             defaultValue=2,
             minValue=0,
             optional=True)
-        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced) 
+        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(param)
         param = QgsProcessingParameterField(
             self.PrmDateStampField,
@@ -190,7 +190,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             type=QgsProcessingParameterField.Any,
             optional=True
         )
-        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced) 
+        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(param)
         param = QgsProcessingParameterField(
             self.PrmTimeStampField,
@@ -199,7 +199,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             type=QgsProcessingParameterField.Any,
             optional=True
         )
-        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced) 
+        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(param)
         param = QgsProcessingParameterField(
             self.PrmDateBeginField,
@@ -208,7 +208,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             type=QgsProcessingParameterField.Any,
             optional=True
         )
-        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced) 
+        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(param)
         param = QgsProcessingParameterField(
             self.PrmTimeBeginField,
@@ -217,7 +217,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             type=QgsProcessingParameterField.Any,
             optional=True
         )
-        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced) 
+        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(param)
         param = QgsProcessingParameterField(
             self.PrmDateEndField,
@@ -226,7 +226,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             type=QgsProcessingParameterField.Any,
             optional=True
         )
-        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced) 
+        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(param)
         param = QgsProcessingParameterField(
             self.PrmTimeEndField,
@@ -235,7 +235,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             type=QgsProcessingParameterField.Any,
             optional=True
         )
-        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced) 
+        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(param)
 
     def processAlgorithm(self, parameters, context, feedback):
@@ -246,7 +246,6 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         source = self.parameterAsSource(parameters, self.PrmInputLayer, context)
         layer = self.parameterAsLayer(parameters, self.PrmInputLayer, context)
         name_field = self.parameterAsString(parameters, self.PrmNameField, context)
-        # desc_field = self.parameterAsString(parameters, self.PrmDescriptionField, context)
         desc_fields = self.parameterAsFields(parameters, self.PrmDescriptionField, context)
         desc_cnt = len(desc_fields)
         export_style = self.parameterAsInt(parameters, self.PrmExportStyle, context)
@@ -283,26 +282,25 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         if src_crs != self.epsg4326:
             geomTo4326 = QgsCoordinateTransform(src_crs, self.epsg4326, QgsProject.instance())
 
+        self.symcontext = QgsRenderContext.fromMapSettings(utils.canvas.mapSettings())
         self.png_icons = []
-        self.cat_styles={}
+        self.cat_styles = {}
         kml = simplekml.Kml()
         kml.resetidcounter()
-        kml.document.name = source.sourceName()
         if export_style:
             render = layer.renderer()
-            # feedback.pushInfo(render.dump())
             render_type = render.type()
             if render_type == 'singleSymbol':
                 export_style = 1
             elif render_type == 'categorizedSymbol':
-                style_field = render.classAttribute()
                 export_style = 2
             else:
                 feedback.reportError('Only single symobl and categorized symbols can be exported. Processing will continue without symbol export.')
                 export_style = 0
             if export_style:
-                self.initStyles(export_style, show_labels, geomtype, render, kml)
+                self.initStyles(export_style, show_labels, geomtype, layer, render, kml)
 
+        folder = kml.newfolder(name=source.sourceName())
         altitude = 0
         featureCount = source.featureCount()
         total = 100.0 / featureCount if featureCount else 0
@@ -319,61 +317,58 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     altitude = 0
             geom = feature.geometry()
             if src_crs != self.epsg4326:
-                result = geom.transform(geomTo4326)
+                geom.transform(geomTo4326)
             if geom.isMultipart():
-                kmlgeom = kml.newmultigeometry()
+                kmlgeom = folder.newmultigeometry()
                 kml_item = kmlgeom
             else:
-                kmlgeom = kml
+                kmlgeom = folder
                 kml_item = None
             if geomtype == QgsWkbTypes.PointGeometry:  # POINTS
                 for pt in geom.parts():
-                    kmlpart = kml.newpoint()
+                    kmlpart = kmlgeom.newpoint()
                     self.setAltitudeMode(kmlpart, feature, default_alt_mode, alt_mode_field)
-                    self.exportStyle(kmlpart, feature, export_style)
                     if kml_item is None:
                         kml_item = kmlpart
                     if hasz:
-                        kmlpart.coords = [(pt.x(),pt.y(),pt.z())]
+                        kmlpart.coords = [(pt.x(), pt.y(), pt.z())]
                     else:
-                        kmlpart.coords = [(pt.x(),pt.y(),altitude)]
-                
+                        kmlpart.coords = [(pt.x(), pt.y(), altitude)]
             elif geomtype == QgsWkbTypes.LineGeometry:  # LINES
                 for part in geom.parts():
                     kmlpart = kmlgeom.newlinestring()
                     self.setAltitudeMode(kmlpart, feature, default_alt_mode, alt_mode_field)
-                    self.exportStyle(kmlpart, feature, export_style)
                     if kml_item is None:
                         kml_item = kmlpart
                     if hasz:
-                        kmlpart.coords = [(pt.x(),pt.y(),pt.z()) for pt in part]
+                        kmlpart.coords = [(pt.x(), pt.y(), pt.z()) for pt in part]
                     else:
-                        kmlpart.coords = [(pt.x(),pt.y(),altitude) for pt in part]
+                        kmlpart.coords = [(pt.x(), pt.y(), altitude) for pt in part]
             elif geomtype == QgsWkbTypes.PolygonGeometry:  # POLYGONS
                 for part in geom.parts():
                     kmlpart = kmlgeom.newpolygon()
                     self.setAltitudeMode(kmlpart, feature, default_alt_mode, alt_mode_field)
-                    self.exportStyle(kmlpart, feature, export_style)
                     if kml_item is None:
                         kml_item = kmlpart
                     num_interior_rings = part.numInteriorRings()
                     ext_ring = part.exteriorRing()
                     if hasz:
-                        kmlpart.outerboundaryis = [(pt.x(),pt.y(),pt.z()) for pt in ext_ring]
+                        kmlpart.outerboundaryis = [(pt.x(), pt.y(), pt.z()) for pt in ext_ring]
                     else:
-                        kmlpart.outerboundaryis = [(pt.x(),pt.y(),altitude) for pt in ext_ring]
+                        kmlpart.outerboundaryis = [(pt.x(), pt.y(), altitude) for pt in ext_ring]
                     if num_interior_rings:
                         ib = []
                         for i in range(num_interior_rings):
                             if hasz:
-                                ib.append([(pt.x(),pt.y(),pt.z()) for pt in part.interiorRing(i)])
+                                ib.append([(pt.x(), pt.y(), pt.z()) for pt in part.interiorRing(i)])
                             else:
-                                ib.append([(pt.x(),pt.y(),altitude) for pt in part.interiorRing(i)])
+                                ib.append([(pt.x(), pt.y(), altitude) for pt in part.interiorRing(i)])
                         kmlpart.innerboundaryis = ib
-                    
+
+            self.exportStyle(kml_item, feature, export_style)
             if name_field:
                 self.exportName(kml_item, feature[name_field])
-                
+
             if desc_cnt == 1:
                 self.exportDescription(kml_item, feature[desc_fields[0]])
             elif desc_cnt > 1:
@@ -404,44 +399,52 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
 
             if cnt % 100 == 0:
                 feedback.setProgress(int(cnt * total))
-                       
+
         if num_features == 0:
             feedback.pushInfo('No features processed')
         else:
             kml.savekmz(filename)
-            
+
         self.cleanup()
-            
+
         return({})
 
     def exportStyle(self, kml_item, feature, export_style):
         if export_style == 1:
             kml_item.style = self.simple_style
         elif export_style == 2:
-            cat = feature[self.style_field]
+            cat = '{}'.format(feature[self.style_field])
+            # self.feedback.pushInfo('cat: {}'.format(cat))
             if cat not in self.cat_styles:
-                cat = None
+                # self.feedback.pushInfo('cat not in cat_styles')
+                cat = ''
             if cat in self.cat_styles:
+                # self.feedback.pushInfo('cat in cat_styles')
                 kml_item.style = self.cat_styles[cat]
+                # self.feedback.pushInfo('style {}'.format(kml_item.style))
 
-    def initStyles(self, type, show_labels, geomtype, render, kml):
+    def initStyles(self, type, show_labels, geomtype, layer, render, kml):
         if type == 1:
             symbol = render.symbol()
             self.simple_style = simplekml.Style()
             if geomtype == QgsWkbTypes.PointGeometry:
-                size = symbol.size()
-                # self.feedback.pushInfo('size: {}'.format(size))
+                sym_size = symbol.size(self.symcontext)
+                bounds = symbol.bounds(QPointF(0, 0), self.symcontext)
+                size = bounds.width()
+                if bounds.height() > size:
+                    size = bounds.height()
+                size = math.ceil(size * 1.1)
                 path = os.path.join(self.temp_dir, 'icon.png')
                 self.png_icons.append(path)
-                symbol.exportImage(path,"png", QSize(40, 40))
+                symbol.exportImage(path, "png", QSize(size, size))
                 kml.addfile(path)
+                self.simple_style.iconstyle.scale = sym_size / 15
                 self.simple_style.iconstyle.icon.href = 'files/icon.png'
-                #self.simple_style.iconstyle.scale = size
             elif geomtype == QgsWkbTypes.LineGeometry:
                 self.simple_style.linestyle.color = qcolor2kmlcolor(symbol.color())
                 self.simple_style.linestyle.width = symbol.width() * self.line_width_factor
                 if show_labels:
-                    self.simple_style.linestyle.gxlabelvisibility=True
+                    self.simple_style.linestyle.gxlabelvisibility = True
             else:
                 symbol_layer = symbol.symbolLayer(0)
                 self.simple_style.linestyle.color = qcolor2kmlcolor(symbol_layer.strokeColor())
@@ -449,24 +452,29 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 self.simple_style.polystyle.color = qcolor2kmlcolor(symbol_layer.color())
         else:
             self.style_field = render.classAttribute()
-            for idx,category in enumerate(render.categories()):
+            for idx, category in enumerate(render.categories()):
                 cat_style = simplekml.Style()
                 symbol = category.symbol()
-                size = symbol.size()
-                size2 = symbol.size(QgsRenderContext())
-                sizeUnit = symbol.sizeUnit()
                 if geomtype == QgsWkbTypes.PointGeometry:
+                    sym_size = symbol.size(self.symcontext)
+                    # self.feedback.pushInfo('sym_size: {}'.format(sym_size))
+                    bounds = symbol.bounds(QPointF(0, 0), self.symcontext)
+                    size = bounds.width()
+                    if bounds.height() > size:
+                        size = bounds.height()
+                    size = math.ceil(size * 1.1)
                     name = 'icon{}.png'.format(idx)
                     path = os.path.join(self.temp_dir, name)
                     self.png_icons.append(path)
-                    symbol.exportImage(path,"png", QSize(30, 30))
+                    symbol.exportImage(path, "png", QSize(size, size))
                     kml.addfile(path)
-                    cat_style.iconstyle.icon.href = 'files/'+name
+                    cat_style.iconstyle.scale = sym_size / 15
+                    cat_style.iconstyle.icon.href = 'files/' + name
                 elif geomtype == QgsWkbTypes.LineGeometry:
                     cat_style.linestyle.color = qcolor2kmlcolor(symbol.color())
                     cat_style.linestyle.width = symbol.width() * self.line_width_factor
                     if show_labels:
-                        cat_style.linestyle.gxlabelvisibility=True
+                        cat_style.linestyle.gxlabelvisibility = True
                 else:
                     symbol_layer = symbol.symbolLayer(0)
                     cat_style.linestyle.color = qcolor2kmlcolor(symbol_layer.strokeColor())
@@ -483,17 +491,17 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         name = '{}'.format(fname)
         name = name.strip()
         kml_item.name = name
-        
+
     def exportDescription(self, kml_item, desc):
         desc = '{}'.format(desc).strip()
         if desc:
             kml_item.description = desc
-            
+
     def exportFields(self, kml_item, fields, f):
         for field in fields:
             v = escape('{}'.format(f[field]).strip())
             if v != '':
-                kml_item.extendeddata.newdata(name=field,value=v,displayname=field)
+                kml_item.extendeddata.newdata(name=field, value=v, displayname=field)
 
     def setAltitudeMode(self, kml_item, f, alt_mode, mode_field):
         try:
@@ -522,7 +530,6 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     date = feature[date_field]
                 if time_field:
                     time = feature[time_field]
-            
             if dt:
                 if isinstance(dt, QDateTime):
                     year = dt.date().year()
@@ -533,15 +540,15 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     second = dt.time().second()
                     msec = dt.time().msec()
                     if msec == 0:
-                        str = '{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}'.format(year,month,day,hour,minute,second)
+                        str = '{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}'.format(year, month, day, hour, minute, second)
                     else:
-                        str = '{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}.{:03d}'.format(year,month,day,hour,minute,second,msec)
+                        str = '{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}.{:03d}'.format(year, month, day, hour, minute, second, msec)
                     return(str)
                 elif isinstance(dt, QDate):
                     year = dt.year()
                     month = dt.month()
                     day = dt.day()
-                    str = '{:04d}-{:02d}-{:02d}'.format(year,month,day)
+                    str = '{:04d}-{:02d}-{:02d}'.format(year, month, day)
                     return(str)
                 elif isinstance(dt, float) or isinstance(dt, int):
                     str = self.prepareEpochTimeString(dt)
@@ -555,8 +562,8 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                         return(str)
                     except ValueError:
                         pass
-                    d1 = dateutil.parser.parse(s, default=datetime.datetime(datetime.MINYEAR,1,1,hour=0, minute=0, second=0, microsecond=0, tzinfo=None))
-                    d2 = dateutil.parser.parse(s, default=datetime.datetime(datetime.MINYEAR,2,2,hour=1, minute=1, second=1, microsecond=1, tzinfo=None))
+                    d1 = dateutil.parser.parse(s, default=datetime.datetime(datetime.MINYEAR, 1, 1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None))
+                    d2 = dateutil.parser.parse(s, default=datetime.datetime(datetime.MINYEAR, 2, 2, hour=1, minute=1, second=1, microsecond=1, tzinfo=None))
                     str = self.prepareDateString(d1, d2)
                     return(str)
             else:
@@ -571,25 +578,25 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     year = date.date().year()
                     month = date.date().month()
                     day = date.date().day()
-                    date_str = '{:04d}-{:02d}-{:02d}'.format(year,month,day)
+                    date_str = '{:04d}-{:02d}-{:02d}'.format(year, month, day)
                 elif isinstance(date, QDate):
                     year = date.year()
                     month = date.month()
                     day = date.day()
-                    date_str = '{:04d}-{:02d}-{:02d}'.format(year,month,day)
+                    date_str = '{:04d}-{:02d}-{:02d}'.format(year, month, day)
                 else:
                     s = '{}'.format(date).strip()
                     if not s:
                         return(None)
-                    d1 = dateutil.parser.parse(s, default=datetime.datetime(datetime.MINYEAR,1,1))
+                    d1 = dateutil.parser.parse(s, default=datetime.datetime(datetime.MINYEAR, 1, 1))
                     if not time:
-                        d2 = dateutil.parser.parse(s, default=datetime.datetime(datetime.MINYEAR,2,2))
+                        d2 = dateutil.parser.parse(s, default=datetime.datetime(datetime.MINYEAR, 2, 2))
                         date_str_partial = '{:04d}'.format(d1.year)
                         if d1.month == d2.month:
                             date_str_partial = date_str_partial + '-{:02d}'.format(d1.month)
                         if d1.day == d2.day:
                             date_str_partial = date_str_partial + '-{:02d}'.format(d1.day)
-                    date_str = '{:04d}-{:02d}-{:02d}'.format(d1.year,d1.month,d1.day)
+                    date_str = '{:04d}-{:02d}-{:02d}'.format(d1.year, d1.month, d1.day)
 
                 # Format the time portion string
                 time_str = None
@@ -600,34 +607,33 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                         second = time.time().second()
                         msec = time.time().msec()
                         if msec == 0:
-                            time_str = '{:02d}:{02d}:{:02d}'.format(hour,minute,second)
+                            time_str = '{:02d}:{:02d}:{:02d}'.format(hour, minute, second)
                         else:
-                            time_str = '{:02d}:{02d}:{:02d}.{:03d}'.format(hour,minute,second,msec)
+                            time_str = '{:02d}:{:02d}:{:02d}.{:03d}'.format(hour, minute, second, msec)
                     elif isinstance(time, QTime):
                         hour = time.hour()
                         minute = time.minute()
                         second = time.second()
                         msec = time.msec()
                         if msec == 0:
-                            time_str = '{:02d}:{:02d}:{:02d}'.format(hour,minute,second)
+                            time_str = '{:02d}:{:02d}:{:02d}'.format(hour, minute, second)
                         else:
-                            time_str = '{:02d}:{:02d}:{:02d}.{:03d}'.format(hour,minute,second,msec)
+                            time_str = '{:02d}:{:02d}:{:02d}.{:03d}'.format(hour, minute, second, msec)
                     else:
                         s = '{}'.format(time).strip()
                         if not s:
                             return(None)
-                        d = dateutil.parser.parse(s, default=datetime.datetime(datetime.MINYEAR,1,1,hour=0, minute=0, second=0, microsecond=0, tzinfo=None))
-                        time_str = '{:02d}:{:02d}:{:02d}'.format(d.hour,d.minute,d.second)
+                        d = dateutil.parser.parse(s, default=datetime.datetime(datetime.MINYEAR, 1, 1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None))
+                        time_str = '{:02d}:{:02d}:{:02d}'.format(d.hour, d.minute, d.second)
                 if time_str:
                     return(date_str + 'T' + time_str)
                 else:
                     if date_str_partial:
                         return(date_str_partial)
                     return(date_str)
-                    
         except Exception:
-            s = traceback.format_exc()
-            self.feedback.pushInfo(s)
+            '''s = traceback.format_exc()
+            self.feedback.pushInfo(s)'''
             return(None)
 
     def prepareEpochTimeString(self, dt):
@@ -640,9 +646,9 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         second = edt.second
         microsec = edt.microsecond
         if microsec == 0:
-            str = '{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}'.format(year,month,day,hour,minute,second)
+            str = '{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}'.format(year, month, day, hour, minute, second)
         else:
-            str = '{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}.{:03d}'.format(year,month,day,hour,minute,second,int(microsec/1000))
+            str = '{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}.{:03d}'.format(year, month, day, hour, minute, second, int(microsec / 1000))
         return(str)
 
     def prepareDateString(self, d1, d2):
@@ -687,4 +693,3 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
 
     def createInstance(self):
         return ExportKmzAlgorithm()
-

@@ -1,21 +1,22 @@
 [general]
 name=KML Tools
-qgisMinimumVersion=3.2
-description=Fast KML/KMZ importer with description field expansion
-version=3.0.10
+qgisMinimumVersion=3.4
+description=Fast KML/KMZ importer, exporter, with description field expansion
+version=3.1.0
 author=C Hamilton
 email=adenaculture@gmail.com
 about=
-    The native QGIS KML importer creates separate layers for each folder within a KML. If there are hundreds of layers, the import can be very slow or can crash QGIS. This plugin only creates one point layer, one line layer, and one polygon layer. It adds the nested folder structure to a field in the QGIS layer. This makes the KML/KMZ import very quick. An additional tool looks at the KML description field to see if there are two column tables with entries, "tag=value" pairs, or "tag: value" pairs that could be expanded into table fields.
+    The native QGIS KML importer creates separate layers for each folder within a KML. If there are hundreds of layers, the import can be very slow or can crash QGIS. This plugin only creates one point layer, one line layer, and one polygon layer. It adds the nested folder structure to a field in the QGIS layer. This makes the KML/KMZ import very quick. An additional tool looks at the KML description field to see if there are two column tables with entries, "tag=value" pairs, or "tag: value" pairs that could be expanded into table fields. QGIS exporter to KMZ preserves simple styling.
 tracker=https://github.com/NationalSecurityAgency/qgis-kmltools-plugin/issues
 repository=https://github.com/NationalSecurityAgency/qgis-kmltools-plugin
-tags=kml,kmz,points,lines,polygons,conversion,html
+tags=kml,kmz,points,lines,polygons,conversion,html,import,export
 homepage=https://github.com/NationalSecurityAgency/qgis-kmltools-plugin
 category=Vector
-icon=icons/icon.png
+icon=icons/import.png
 experimental=False
 deprecated=False
 changelog=
+    3.1.0 - Added KML export capability
     3.0.9 - Fixed QgsProcessingException undefined error
     3.0.8 - Support kml prefix
     3.0.7 - Added Z dimension for polygons and fixed a bug

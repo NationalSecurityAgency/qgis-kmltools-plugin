@@ -24,6 +24,7 @@ from qgis.core import QgsApplication
 import processing
 
 import os
+import utils
 from .provider import KmlToolsProvider
 
 class KMLTools(object):
@@ -31,6 +32,7 @@ class KMLTools(object):
         self.iface = iface
         self.htmlDialog = None
         self.provider = KmlToolsProvider()
+        utils.canvas = iface.mapCanvas()
 
     def initGui(self):
         """Create the menu & tool bar items within QGIS"""
