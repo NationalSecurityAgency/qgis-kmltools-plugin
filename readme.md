@@ -1,14 +1,16 @@
 # QGIS KML Tools
 
-The native QGIS importer creates separate layers for each folder within a KML/KMZ. If there are hundreds or thousands of layers, the import can be very slow, crash QGIS, or create an undesirable number of layers. This plugin only creates one point layer, one line layer, and one polygon layer. This makes the KML/KMZ import very quick. It adds the nested folder structure to a field in the QGIS layer which can then be used for sorting and filtering based on the previous folders in the KML.
+The native QGIS importer creates separate layers for each folder within a KML/KMZ. If there are hundreds or thousands of layers, the import can be very slow, crash QGIS, or create an undesirable number of layers. This plugin only creates one point layer, one line layer, and one polygon layer. This makes the KML/KMZ import very quick. It adds the nested folder structure to a field in the QGIS layer which can then be used for sorting and filtering based on the previous folders in the KML. A KMZ can be exported with simple QGIS styling for points, lines and polygons.
 
 ***KML Tools*** can be found in the QGIS menu under ***Vector->KML Tools***, on the tool bar, or in the Processing Toolbox under ***KML Tools****. It has three tools.
 
-<img src="icons/import.png" alt="Import KML/KMZ"> ***Import KML/KMZ*** - This functions as the name implies. It's interface is simple. Click on the ... button on the right of ***Import KML/KMZ file*** to select your file. Choose whether you want to include points, lines or polygons from the KML as QGIS output layers. If the KML file does not contain one of these geometry types, then the associated layer will not be created anyway. 
+## <img src="icons/import.png" alt="Import KML/KMZ"> ***Import KML/KMZ***
+This functions as the name implies. It's interface is simple. Click on the ... button on the right of ***Import KML/KMZ file*** to select your file. Choose whether you want to include points, lines or polygons from the KML as QGIS output layers. If the KML file does not contain one of these geometry types, then the associated layer will not be created anyway. 
 
 <div style="text-align:center"><img src="doc/import.jpg" alt="Import KML/KMZ"></div>
 
-<img src="icons/html.png" alt="HTML description expansion"> ***Expand HTML description field*** - This attempts to expand HTML tag/value pairs into separate fields. Before this can be run, the KML needs to be imported into QGIS with ***Import KML/KMZ***. Next select from ***How to expand the description field*** option one of the following:
+## <img src="icons/html.png" alt="HTML description expansion"> ***Expand HTML description field***
+This attempts to expand HTML tag/value pairs into separate fields. Before this can be run, the KML needs to be imported into QGIS with ***Import KML/KMZ***. Next select from ***How to expand the description field*** option one of the following:
 
 * ***Expand from a 2 column HTML table*** - If the KML has a description entry that contains an HTML table with two columns were the first column represents a table or field name and the second column its value, then this option will parse these fields and add them to a new attribute table field.  This is an example of data that it expands.
 
@@ -45,4 +47,30 @@ The ***Processing Toolbox*** version of ***Expand HTML description table*** oper
 
 Because there is no standard way of including additional information in the KML description entry, it is difficult to come up with a way to expand all cases. Right now this just works with two column HTML tables, ***tag=value***, and ***tag: value*** pairs, but please let us know if there are other description formats that you would like us to tackle.
 
-This plugin may not be for everyone as it does not implement the entire KML specification, but if you find that it is missing some aspect of KML, let us know and perhaps we can add it.
+## <img src="icons/export.png" alt="Export KMZ"> ***Export KMZ***
+This provides the ability to export a QGIS point, line, or polygon layer as a Google Earth KMZ file. It can export single and categorized QGIS symbology. For others it will default to not exporting the symbology. For points it captures the entire symbol, but for lines and polygons only simple line colors, line widths, and solid polygon fills can be exported due the the limitations of the KML specification. It can export date and time in one or two fields as a time stamp, time begin and time end. It also handles altitude either from QGIS Z geometries or from an attribute field.
+
+<div style="text-align:center"><img src="doc/export.jpg" alt="Export KMZ"></div>
+
+The following describes some of the functionality.
+
+* ***Name field*** - This is the name label that will be displayed in Google Earth.
+* ***Description fields*** - By default all fields are selected to be included in the KMZ. When the user clicks on a placemark in Google Earth, these fields will be displayed. If only one field is specified then it will be treated as a description field.
+* ***Export style for single and categorized symbols*** - Select this if you want to export the QGIS style information to KML. Note that for lines and polygons, you can only use simple styles. If the style is not single or categorized, then no style information will be exported.
+* ***Show line labels*** - If checked, then lines labels will be displayed in Google Earth.
+* ***Specify whether to include altitude in the KMZ*** - If altitude is available in the QGIS geometry as a Z attribute or is available in the attribute table, then it can be included in the KMZ. Note that the altitude value must be in **meters**; otherwise, it will not be displayed correctly. The KML Altitude Mode also affects how altitude is interpreted.
+* ***Default altitude mode when not obtained from the attribute table*** - When altitude is not obtained from a field in the attribute table, then this value is used.
+* ***Altitude mode field*** - Specify a field in the attribute table to be used as the altitude mode.
+* ***Altitude field*** - Specify a field in the attribute table to be used as the altitude. This value must be in meters.
+* ***Date/Time stamp field*** - This specifies a field in the attribute table that contains a date and time. This can be a QGIS QDateTime field, QDate field, QString field, int or double field. It attempts to smartly parse any string field. If the field is an int or double then at assumes the value is EPOCH time in seconds. In the advanced parameters, separate date and time fields can be used.
+* ***Date/Time span begin field*** - This selects a field for the date/time span begin field.
+* ***Date/Time span end field*** - This selects a field for the date/time span end field.
+
+**Advanced Parameters**
+
+<div style="text-align:center"><img src="doc/export_advanced.jpg" alt="Advanced parameters"></div>
+
+* ***Line width multiplication factor*** - Line widths in Google Earth visually appear smaller than in QGIS so this provides a method to make them look similar. By default this is set to 2.
+* The rest of the advanced parameters allow the use of separate date and time fields to be combined into a single KML time stamp, time span begin, or time span end field.
+
+KML Tools does not implement the entire KML specification. It focuses on point, line and polygon geometries within the KML. If for some reason you find that it is missing something, let us know and perhaps we can add it.
