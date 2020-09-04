@@ -24,7 +24,7 @@ from xml.sax.saxutils import escape
 import simplekml
 # import traceback
 import tempfile
-import utils
+from .settings import settings
 
 def qcolor2kmlcolor(color):
     return('{:02x}{:02x}{:02x}{:02x}'.format(color.alpha(), color.blue(), color.green(), color.red()))
@@ -282,7 +282,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         if src_crs != self.epsg4326:
             geomTo4326 = QgsCoordinateTransform(src_crs, self.epsg4326, QgsProject.instance())
 
-        self.symcontext = QgsRenderContext.fromMapSettings(utils.canvas.mapSettings())
+        self.symcontext = QgsRenderContext.fromMapSettings(settings.canvas.mapSettings())
         self.png_icons = []
         self.cat_styles = {}
         kml = simplekml.Kml()
