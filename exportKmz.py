@@ -5,7 +5,7 @@ from qgis.PyQt.QtGui import QIcon
 
 from qgis.core import (
     QgsCoordinateTransform, QgsCoordinateReferenceSystem,
-    QgsProject, QgsRenderContext, QgsWkbTypes)
+    QgsProject, QgsRenderContext, QgsWkbTypes, Qgis)
 
 from qgis.core import (
     QgsProcessing,
@@ -76,17 +76,29 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 optional=True
             )
         )
-        self.addParameter(
-            QgsProcessingParameterField(
-                self.PrmDescriptionField,
-                'Description fields',
-                parentLayerParameterName=self.PrmInputLayer,
-                type=QgsProcessingParameterField.Any,
-                optional=True,
-                allowMultiple=True,
-                defaultToAllFields=True
+        if Qgis.QGIS_VERSION_INT >= 31200:
+            self.addParameter(
+                QgsProcessingParameterField(
+                    self.PrmDescriptionField,
+                    'Description fields',
+                    parentLayerParameterName=self.PrmInputLayer,
+                    type=QgsProcessingParameterField.Any,
+                    optional=True,
+                    allowMultiple=True,
+                    defaultToAllFields=True
+                )
             )
-        )
+        else:
+            self.addParameter(
+                QgsProcessingParameterField(
+                    self.PrmDescriptionField,
+                    'Description fields',
+                    parentLayerParameterName=self.PrmInputLayer,
+                    type=QgsProcessingParameterField.Any,
+                    optional=True,
+                    allowMultiple=True
+                )
+            )
         self.addParameter(
             QgsProcessingParameterBoolean(
                 self.PrmExportStyle,
@@ -245,7 +257,10 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         filename = self.parameterAsFileOutput(parameters, self.PrmOutputKmz, context)
         source = self.parameterAsSource(parameters, self.PrmInputLayer, context)
         layer = self.parameterAsLayer(parameters, self.PrmInputLayer, context)
-        name_field = self.parameterAsString(parameters, self.PrmNameField, context)
+        if self.PrmNameField not in parameters or parameters[self.PrmNameField] is None:
+            name_field = None
+        else:
+            name_field = self.parameterAsString(parameters, self.PrmNameField, context)
         desc_fields = self.parameterAsFields(parameters, self.PrmDescriptionField, context)
         desc_cnt = len(desc_fields)
         export_style = self.parameterAsInt(parameters, self.PrmExportStyle, context)
