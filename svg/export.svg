@@ -9,8 +9,8 @@
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    inkscape:export-ydpi="96"
    inkscape:export-xdpi="96"
-   inkscape:export-filename="W:\My Documents\GitHub\qgis-kmltools-plugin\export.png"
-   inkscape:version="1.0 (4035a4fb49, 2020-05-01)"
+   inkscape:export-filename="W:\My Documents\GitHub\qgis-kmltools-plugin\icons\export.png"
+   inkscape:version="1.0.1 (3bc2e813f5, 2020-09-07)"
    sodipodi:docname="export.svg"
    id="svg909"
    version="1.1"
@@ -32,7 +32,7 @@
   <sodipodi:namedview
      inkscape:current-layer="svg909"
      inkscape:window-maximized="0"
-     inkscape:window-y="12"
+     inkscape:window-y="14"
      inkscape:window-x="16"
      inkscape:cy="12"
      inkscape:cx="12"
@@ -48,7 +48,8 @@
      objecttolerance="10"
      borderopacity="1"
      bordercolor="#666666"
-     pagecolor="#ffffff" />
+     pagecolor="#ffffff"
+     inkscape:document-rotation="0" />
   <linearGradient
      y2="168.1012"
      y1="111.92053"
@@ -81,6 +82,16 @@
        stop-color="#366994"
        offset="1" />
   </linearGradient>
+  <rect
+     style="fill:#497db4;fill-opacity:1;stroke:#497db4;stroke-width:7.9114;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0.680315;stroke-opacity:1;paint-order:stroke fill markers"
+     id="rect1418"
+     width="16.050539"
+     height="7.0133586"
+     x="4.0029655"
+     y="4.0039091"
+     inkscape:export-filename="W:\My Documents\GitHub\qgis-kmltools-plugin\icons\import.png"
+     inkscape:export-xdpi="96"
+     inkscape:export-ydpi="96" />
   <g
      id="g2140">
     <rect
@@ -118,13 +129,13 @@
   </g>
   <text
      xml:space="preserve"
-     style="font-style:normal;font-weight:normal;font-size:8px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#2b3b4d;fill-opacity:1;stroke:none"
+     style="font-style:normal;font-weight:normal;font-size:8px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:none;"
      x="1.7686759"
      y="10.267987"
      id="text4518"><tspan
        sodipodi:role="line"
        x="1.7686759"
        y="10.267987"
-       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:9.33333px;font-family:Arial;-inkscape-font-specification:'Arial Bold';fill:#2b3b4d;fill-opacity:1"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:9.33333px;font-family:Arial;-inkscape-font-specification:'Arial Bold';fill:#ffffff;fill-opacity:1;"
        id="tspan4520">KMZ</tspan></text>
 </svg>
