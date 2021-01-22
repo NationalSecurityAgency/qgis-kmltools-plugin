@@ -41,7 +41,6 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
     PrmNameField = 'NameField'
     PrmDescriptionField = 'DescriptionField'
     PrmExportStyle = 'ExportStyle'
-    PrmShowLabels = 'ShowLabels'
     PrmLineWidthFactor = 'LineWidthFactor'
     PrmAltitudeInterpretation = 'AltitudeInterpretation'
     PrmAltitudeMode = 'AltitudeMode'
@@ -69,7 +68,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterField(
                 self.PrmNameField,
-                'Name field',
+                'Name/Label field',
                 parentLayerParameterName=self.PrmInputLayer,
                 type=QgsProcessingParameterField.Any,
                 defaultValue='name',
@@ -104,13 +103,6 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 self.PrmExportStyle,
                 'Export style for single and categorized symbols',
                 True,
-                optional=True)
-        )
-        self.addParameter(
-            QgsProcessingParameterBoolean(
-                self.PrmShowLabels,
-                'Show line labels',
-                False,
                 optional=True)
         )
         self.addParameter(
@@ -264,7 +256,6 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         desc_fields = self.parameterAsFields(parameters, self.PrmDescriptionField, context)
         desc_cnt = len(desc_fields)
         export_style = self.parameterAsInt(parameters, self.PrmExportStyle, context)
-        show_labels = self.parameterAsInt(parameters, self.PrmShowLabels, context)
         self.line_width_factor = self.parameterAsDouble(parameters, self.PrmLineWidthFactor, context)
         alt_interpret = self.parameterAsEnum(parameters, self.PrmAltitudeInterpretation, context)
         if self.PrmAltitudeMode not in parameters or parameters[self.PrmAltitudeMode] is None:
@@ -314,7 +305,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 feedback.reportError('Only single symbol and categorized symbol styles can be exported. Processing will continue without symbol style export.')
                 export_style = 0
             if export_style:
-                self.initStyles(export_style, show_labels, geomtype, layer, render, kml)
+                self.initStyles(export_style, name_field, geomtype, layer, render, kml)
 
         folder = kml.newfolder(name=source.sourceName())
         altitude = 0
@@ -334,7 +325,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             geom = feature.geometry()
             if src_crs != self.epsg4326:
                 geom.transform(geomTo4326)
-            if geom.isMultipart():
+            if geom.isMultipart() or (name_field and geomtype == QgsWkbTypes.PolygonGeometry):
                 kmlgeom = folder.newmultigeometry()
                 kml_item = kmlgeom
             else:
@@ -361,6 +352,11 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     else:
                         kmlpart.coords = [(pt.x(), pt.y(), altitude) for pt in part]
             elif geomtype == QgsWkbTypes.PolygonGeometry:  # POLYGONS
+                if name_field:
+                    centroid = geom.centroid().asPoint()
+                    name = '{}'.format(feature[name_field])
+                    labelpart = kmlgeom.newpoint(coords=[(centroid.x(), centroid.y())], name=name)
+
                 for part in geom.parts():
                     kmlpart = kmlgeom.newpolygon()
                     self.setAltitudeMode(kmlpart, feature, default_alt_mode, alt_mode_field)
@@ -442,7 +438,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 kml_item.style = self.cat_styles[catindex]
                 # self.feedback.pushInfo('  style {}'.format(kml_item.style))
 
-    def initStyles(self, symtype, show_labels, geomtype, layer, render, kml):
+    def initStyles(self, symtype, name_field, geomtype, layer, render, kml):
         # self.feedback.pushInfo('initStyles type: {}'.format(symtype))
         if symtype == 1:
             symbol = render.symbol()
@@ -463,13 +459,15 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             elif geomtype == QgsWkbTypes.LineGeometry:
                 self.simple_style.linestyle.color = qcolor2kmlcolor(symbol.color())
                 self.simple_style.linestyle.width = symbol.width() * self.line_width_factor
-                if show_labels:
+                if name_field:
                     self.simple_style.linestyle.gxlabelvisibility = True
             else:
                 symbol_layer = symbol.symbolLayer(0)
                 self.simple_style.linestyle.color = qcolor2kmlcolor(symbol_layer.strokeColor())
                 self.simple_style.linestyle.width = symbol_layer.strokeWidth() * self.line_width_factor
                 self.simple_style.polystyle.color = qcolor2kmlcolor(symbol_layer.color())
+                if name_field:
+                    self.simple_style.iconstyle.scale = 0
         else:
             self.style_field = render.classAttribute()
             for idx, category in enumerate(render.categories()):
@@ -498,7 +496,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     # self.feedback.pushInfo('  LineGeometry')
                     cat_style.linestyle.color = qcolor2kmlcolor(symbol.color())
                     cat_style.linestyle.width = symbol.width() * self.line_width_factor
-                    if show_labels:
+                    if name_field:
                         cat_style.linestyle.gxlabelvisibility = True
                 else:
                     # self.feedback.pushInfo('  PolygonGeometry')
@@ -506,6 +504,8 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     cat_style.linestyle.color = qcolor2kmlcolor(symbol_layer.strokeColor())
                     cat_style.linestyle.width = symbol_layer.strokeWidth() * self.line_width_factor
                     cat_style.polystyle.color = qcolor2kmlcolor(symbol_layer.color())
+                    if name_field:
+                        cat_style.iconstyle.scale = 0
                 self.cat_styles[idx] = cat_style
 
     def cleanup(self):

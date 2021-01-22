@@ -54,10 +54,9 @@ This provides the ability to export a QGIS point, line, or polygon layer as a Go
 
 The following describes some of the functionality.
 
-* ***Name field*** - This is the name label that will be displayed in Google Earth.
+* ***Name/Label field*** - This is the name or label that will be displayed in Google Earth.
 * ***Description fields*** - By default all fields are selected to be included in the KMZ. When the user clicks on a placemark in Google Earth, these fields will be displayed. If only one field is specified then it will be treated as a description field.
 * ***Export style for single and categorized symbols*** - Select this if you want to export the QGIS style information to KML. Note that for lines and polygons, you can only use simple styles. If the style is not single or categorized, then no style information will be exported.
-* ***Show line labels*** - If checked, then lines labels will be displayed in Google Earth.
 * ***Specify whether to include altitude in the KMZ*** - If altitude is available in the QGIS geometry as a Z attribute or is available in the attribute table, then it can be included in the KMZ. Note that the altitude value must be in **meters**; otherwise, it will not be displayed correctly. The KML Altitude Mode also affects how altitude is interpreted.
 * ***Default altitude mode when not obtained from the attribute table*** - When altitude is not obtained from a field in the attribute table, then this value is used.
 * ***Altitude mode field*** - Specify a field in the attribute table to be used as the altitude mode.
