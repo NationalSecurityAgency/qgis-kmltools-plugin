@@ -4,6 +4,7 @@ from qgis.PyQt.QtGui import QIcon
 from .htmlExpansionAlgorithm import HTMLExpansionAlgorithm
 from .importKml import ImportKmlAlgorithm
 from .exportKmz import ExportKmzAlgorithm
+# from .convertGroundOverlays import ConvertGroundOverlayAlgorithm
 
 class KmlToolsProvider(QgsProcessingProvider):
 
@@ -14,6 +15,7 @@ class KmlToolsProvider(QgsProcessingProvider):
         self.addAlgorithm(HTMLExpansionAlgorithm())
         self.addAlgorithm(ImportKmlAlgorithm())
         self.addAlgorithm(ExportKmzAlgorithm())
+        # self.addAlgorithm(ConvertGroundOverlayAlgorithm())
         
     def icon(self):
         return QIcon(os.path.dirname(__file__) + '/icons/import.png')

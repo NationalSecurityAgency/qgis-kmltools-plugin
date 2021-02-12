@@ -9,6 +9,7 @@ from qgis.core import (
 
 from qgis.core import (
     QgsProcessing,
+    QgsProcessingException,
     QgsProcessingAlgorithm,
     QgsProcessingParameterBoolean,
     QgsProcessingParameterEnum,
@@ -32,6 +33,19 @@ def qcolor2kmlcolor(color):
 
 ALTITUDE_MODES = ['clampToGround', 'relativeToGround', 'absolute']
 
+GOOGLE_ICONS = {
+    'Square placemark':'http://maps.google.com/mapfiles/kml/shapes/placemark_square.png',
+    'Circle placemark':'http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png',
+    'Shaded dot':'http://maps.google.com/mapfiles/kml/shapes/shaded_dot.png',
+    'Donut':'http://maps.google.com/mapfiles/kml/shapes/donut.png',
+    'Polygon':'http://maps.google.com/mapfiles/kml/shapes/polygon.png',
+    'Open diamond':'http://maps.google.com/mapfiles/kml/shapes/open-diamond.png',
+    'Square':'http://maps.google.com/mapfiles/kml/shapes/square.png',
+    'Star':'http://maps.google.com/mapfiles/kml/shapes/star.png',
+    'Target':'http://maps.google.com/mapfiles/kml/shapes/target.png',
+    'Triangle':'http://maps.google.com/mapfiles/kml/shapes/triangle.png'
+    }
+
 class ExportKmzAlgorithm(QgsProcessingAlgorithm):
     """
     Algorithm to import KML and KMZ files.
@@ -41,6 +55,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
     PrmNameField = 'NameField'
     PrmDescriptionField = 'DescriptionField'
     PrmExportStyle = 'ExportStyle'
+    PrmUseGoogleIcon = 'UseGoogleIcon'
     PrmLineWidthFactor = 'LineWidthFactor'
     PrmAltitudeInterpretation = 'AltitudeInterpretation'
     PrmAltitudeMode = 'AltitudeMode'
@@ -103,6 +118,15 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 self.PrmExportStyle,
                 'Export style for single and categorized symbols',
                 True,
+                optional=True)
+        )
+        self.google_icons = list(GOOGLE_ICONS.keys())
+        self.addParameter(
+            QgsProcessingParameterEnum(
+                self.PrmUseGoogleIcon,
+                #'Use QGIS point color &amp; size, but use one of these Google icons.',
+                'Point Layers: Use the following Google icon but use QGIS icon color and size',
+                options=self.google_icons,
                 optional=True)
         )
         self.addParameter(
@@ -248,6 +272,13 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         self.feedback = feedback
         filename = self.parameterAsFileOutput(parameters, self.PrmOutputKmz, context)
         source = self.parameterAsSource(parameters, self.PrmInputLayer, context)
+
+        # Before we go further check to make sure we have a valid vector layer
+        wkbtype = source.wkbType()
+        geomtype = QgsWkbTypes.geometryType(wkbtype)
+        if geomtype == QgsWkbTypes.UnknownGeometry or geomtype == QgsWkbTypes.NullGeometry:
+            raise QgsProcessingException('Algorithm input is not a valid point, line, or polygon layer.')
+            
         layer = self.parameterAsLayer(parameters, self.PrmInputLayer, context)
         if self.PrmNameField not in parameters or parameters[self.PrmNameField] is None:
             name_field = None
@@ -256,6 +287,10 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         desc_fields = self.parameterAsFields(parameters, self.PrmDescriptionField, context)
         desc_cnt = len(desc_fields)
         export_style = self.parameterAsInt(parameters, self.PrmExportStyle, context)
+        if self.PrmUseGoogleIcon not in parameters or parameters[self.PrmUseGoogleIcon] is None:
+            google_icon = None
+        else:
+            google_icon = self.parameterAsEnum(parameters, self.PrmUseGoogleIcon, context)
         self.line_width_factor = self.parameterAsDouble(parameters, self.PrmLineWidthFactor, context)
         alt_interpret = self.parameterAsEnum(parameters, self.PrmAltitudeInterpretation, context)
         if self.PrmAltitudeMode not in parameters or parameters[self.PrmAltitudeMode] is None:
@@ -274,7 +309,6 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         date_end_field = self.parameterAsString(parameters, self.PrmDateEndField, context)
         time_end_field = self.parameterAsString(parameters, self.PrmTimeEndField, context)
 
-        wkbtype = source.wkbType()
         hasz = QgsWkbTypes.hasZ(wkbtype)
         if alt_interpret == 0:
             hasz = False
@@ -283,7 +317,6 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             altitude_field = None
         elif alt_interpret == 2:
             hasz = False
-        geomtype = QgsWkbTypes.geometryType(wkbtype)
         src_crs = source.sourceCrs()
         if src_crs != self.epsg4326:
             geomTo4326 = QgsCoordinateTransform(src_crs, self.epsg4326, QgsProject.instance())
@@ -305,7 +338,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 feedback.reportError('Only single symbol and categorized symbol styles can be exported. Processing will continue without symbol style export.')
                 export_style = 0
             if export_style:
-                self.initStyles(export_style, name_field, geomtype, layer, render, kml)
+                self.initStyles(export_style, google_icon, name_field, geomtype, layer, render, kml)
 
         folder = kml.newfolder(name=source.sourceName())
         altitude = 0
@@ -438,24 +471,30 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 kml_item.style = self.cat_styles[catindex]
                 # self.feedback.pushInfo('  style {}'.format(kml_item.style))
 
-    def initStyles(self, symtype, name_field, geomtype, layer, render, kml):
+    def initStyles(self, symtype, google_icon, name_field, geomtype, layer, render, kml):
         # self.feedback.pushInfo('initStyles type: {}'.format(symtype))
         if symtype == 1:
             symbol = render.symbol()
             self.simple_style = simplekml.Style()
             if geomtype == QgsWkbTypes.PointGeometry:
                 sym_size = symbol.size(self.symcontext)
-                bounds = symbol.bounds(QPointF(0, 0), self.symcontext)
-                size = bounds.width()
-                if bounds.height() > size:
-                    size = bounds.height()
-                size = math.ceil(size * 1.1)
-                path = os.path.join(self.temp_dir, 'icon.png')
-                self.png_icons.append(path)
-                symbol.exportImage(path, "png", QSize(size, size))
-                kml.addfile(path)
-                self.simple_style.iconstyle.scale = sym_size / 15
-                self.simple_style.iconstyle.icon.href = 'files/icon.png'
+                # print(sym_size)
+                if google_icon is None:
+                    bounds = symbol.bounds(QPointF(0, 0), self.symcontext)
+                    size = bounds.width()
+                    if bounds.height() > size:
+                        size = bounds.height()
+                    size = math.ceil(size * 1.1)
+                    path = os.path.join(self.temp_dir, 'icon.png')
+                    self.png_icons.append(path)
+                    symbol.exportImage(path, "png", QSize(size, size))
+                    kml.addfile(path)
+                    self.simple_style.iconstyle.scale = sym_size / 15
+                    self.simple_style.iconstyle.icon.href = 'files/icon.png'
+                else:
+                    self.simple_style.iconstyle.scale = sym_size / 10
+                    self.simple_style.iconstyle.icon.href = GOOGLE_ICONS[self.google_icons[google_icon]]
+                    self.simple_style.iconstyle.color = qcolor2kmlcolor(symbol.color())
             elif geomtype == QgsWkbTypes.LineGeometry:
                 self.simple_style.linestyle.color = qcolor2kmlcolor(symbol.color())
                 self.simple_style.linestyle.width = symbol.width() * self.line_width_factor
@@ -480,18 +519,23 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     # self.feedback.pushInfo('  PointGeometry')
                     sym_size = symbol.size(self.symcontext)
                     # self.feedback.pushInfo('sym_size: {}'.format(sym_size))
-                    bounds = symbol.bounds(QPointF(0, 0), self.symcontext)
-                    size = bounds.width()
-                    if bounds.height() > size:
-                        size = bounds.height()
-                    size = math.ceil(size * 1.1)
-                    name = 'icon{}.png'.format(idx)
-                    path = os.path.join(self.temp_dir, name)
-                    self.png_icons.append(path)
-                    symbol.exportImage(path, "png", QSize(size, size))
-                    kml.addfile(path)
-                    cat_style.iconstyle.scale = sym_size / 15
-                    cat_style.iconstyle.icon.href = 'files/' + name
+                    if google_icon is None:
+                        bounds = symbol.bounds(QPointF(0, 0), self.symcontext)
+                        size = bounds.width()
+                        if bounds.height() > size:
+                            size = bounds.height()
+                        size = math.ceil(size * 1.1)
+                        name = 'icon{}.png'.format(idx)
+                        path = os.path.join(self.temp_dir, name)
+                        self.png_icons.append(path)
+                        symbol.exportImage(path, "png", QSize(size, size))
+                        kml.addfile(path)
+                        cat_style.iconstyle.scale = sym_size / 15
+                        cat_style.iconstyle.icon.href = 'files/' + name
+                    else:
+                        cat_style.iconstyle.scale = sym_size / 10
+                        cat_style.iconstyle.icon.href = GOOGLE_ICONS[self.google_icons[google_icon]]
+                        cat_style.iconstyle.color = qcolor2kmlcolor(symbol.color())
                 elif geomtype == QgsWkbTypes.LineGeometry:
                     # self.feedback.pushInfo('  LineGeometry')
                     cat_style.linestyle.color = qcolor2kmlcolor(symbol.color())
