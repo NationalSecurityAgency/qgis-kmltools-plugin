@@ -476,7 +476,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             value = feature[self.style_field]
             range = render.rangeForValue(value)
             if not range:
-                print("This should not happen")
+                # self.feedback.pushInfo('  This should not happen')
                 return
             symbol = range.symbol()
             if geomtype == QgsWkbTypes.PointGeometry:
@@ -503,7 +503,6 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             self.simple_style = simplekml.Style()
             if geomtype == QgsWkbTypes.PointGeometry:
                 sym_size = symbol.size(self.symcontext)
-                # print(sym_size)
                 if google_icon is None:
                     bounds = symbol.bounds(QPointF(0, 0), self.symcontext)
                     size = bounds.width()
