@@ -1,6 +1,6 @@
 # QGIS KML Tools
 
-The native QGIS importer creates separate layers for each folder within a KML/KMZ. If there are hundreds or thousands of layers, the import can be very slow, crash QGIS, or create an undesirable number of layers. This plugin only creates one point layer, one line layer, and one polygon layer. This makes the KML/KMZ import very quick. It adds the nested folder structure to a field in the QGIS layer which can then be used for sorting and filtering based on the previous folders in the KML. A KMZ can be exported with simple QGIS styling for points, lines and polygons.
+The native QGIS importer creates separate layers for each folder within a KML/KMZ. If there are hundreds or thousands of layers, the import can be very slow, crash QGIS, or create an undesirable number of layers. This plugin only creates one point layer, one line layer, and one polygon layer. This makes the KML/KMZ import very quick. It adds the nested folder structure to a field in the QGIS layer which can then be used for sorting and filtering based on the previous folders in the KML. A KMZ can be exported with simple, categorized, graduated QGIS styling for points, lines and polygons.
 
 ***KML Tools*** can be found in the QGIS menu under ***Vector->KML Tools***, on the tool bar, or in the Processing Toolbox under ***KML Tools****. It has three tools.
 
@@ -48,7 +48,7 @@ The ***Processing Toolbox*** version of ***Expand HTML description table*** oper
 Because there is no standard way of including additional information in the KML description entry, it is difficult to come up with a way to expand all cases. Right now this just works with two column HTML tables, ***tag=value***, and ***tag: value*** pairs, but please let us know if there are other description formats that you would like us to tackle.
 
 ## <img src="icons/export.png" alt="Export KMZ"> ***Export KMZ***
-This provides the ability to export a QGIS point, line, or polygon layer as a Google Earth KMZ file. It can export single and categorized QGIS symbology. For others it will default to not exporting the symbology. For points it captures the entire symbol, but for lines and polygons only simple line colors, line widths, and solid polygon fills can be exported due the the limitations of the KML specification. It can export date and time in one or two fields as a time stamp, time begin and time end. It also handles altitude either from QGIS Z geometries or from an attribute field.
+This provides the ability to export a QGIS point, line, or polygon layer as a Google Earth KMZ file. It can export single, categorized, and graduated QGIS symbology. For others it will default to not exporting the symbology. For points it captures the entire symbol, but for lines and polygons only simple line colors, line widths, and solid polygon fills can be exported due the the limitations of the KML specification. It can export date and time in one or two fields as a time stamp, time begin and time end. It also handles altitude either from QGIS Z geometries or from an attribute field.
 
 <div style="text-align:center"><img src="doc/export.jpg" alt="Export KMZ"></div>
 
@@ -56,7 +56,8 @@ The following describes some of the functionality.
 
 * ***Name/Label field*** - This is the name or label that will be displayed in Google Earth.
 * ***Description fields*** - By default all fields are selected to be included in the KMZ. When the user clicks on a placemark in Google Earth, these fields will be displayed. If only one field is specified then it will be treated as a description field.
-* ***Export style for single and categorized symbols*** - Select this if you want to export the QGIS style information to KML. Note that for lines and polygons, you can only use simple styles. If the style is not single or categorized, then no style information will be exported.
+* ***Export style for single, categorized, and graduated symbols*** - Select this if you want to export the QGIS style information to KML. Note that for lines and polygons, you can only use simple styles. If the style is not single, categorized, or graduated, then no style information will be exported.
+* ***Point layers: Use the following Google icon, but use QGIS icon color and size*** - Rather than display the QGIS icon shape, you can select one of the Google Earth icon shapes to be displayed for point features. The size and color of the icon will be determined by QGIS.
 * ***Specify whether to include altitude in the KMZ*** - If altitude is available in the QGIS geometry as a Z attribute or is available in the attribute table, then it can be included in the KMZ. Note that the altitude value must be in **meters**; otherwise, it will not be displayed correctly. The KML Altitude Mode also affects how altitude is interpreted.
 * ***Default altitude mode when not obtained from the attribute table*** - When altitude is not obtained from a field in the attribute table, then this value is used.
 * ***Altitude mode field*** - Specify a field in the attribute table to be used as the altitude mode.
