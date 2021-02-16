@@ -116,7 +116,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterBoolean(
                 self.PrmExportStyle,
-                'Export style for single and categorized symbols',
+                'Export style for single, categorized, and graduated symbols',
                 True,
                 optional=True)
         )
@@ -334,8 +334,10 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 export_style = 1
             elif render_type == 'categorizedSymbol':
                 export_style = 2
+            elif render_type == 'graduatedSymbol':
+                export_style = 3
             else:
-                feedback.reportError('Only single symbol and categorized symbol styles can be exported. Processing will continue without symbol style export.')
+                feedback.reportError('Only single, categorized, and graduated symbol styles can be exported. Processing will continue without symbol style export.')
                 export_style = 0
             if export_style:
                 self.initStyles(export_style, google_icon, name_field, geomtype, layer, render, kml)
@@ -410,7 +412,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                                 ib.append([(pt.x(), pt.y(), altitude) for pt in part.interiorRing(i)])
                         kmlpart.innerboundaryis = ib
 
-            self.exportStyle(kml_item, feature, export_style, render)
+            self.exportStyle(kml_item, feature, export_style, render, geomtype)
             if name_field:
                 self.exportName(kml_item, feature[name_field])
 
@@ -454,7 +456,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
 
         return({})
 
-    def exportStyle(self, kml_item, feature, export_style, render):
+    def exportStyle(self, kml_item, feature, export_style, render, geomtype):
         # self.feedback.pushInfo('exportStyle')
         if export_style == 1:
             kml_item.style = self.simple_style
@@ -470,10 +472,33 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 # self.feedback.pushInfo('  catindex in cat_styles')
                 kml_item.style = self.cat_styles[catindex]
                 # self.feedback.pushInfo('  style {}'.format(kml_item.style))
+        elif export_style == 3:
+            value = feature[self.style_field]
+            range = render.rangeForValue(value)
+            if not range:
+                print("This should not happen")
+                return
+            symbol = range.symbol()
+            if geomtype == QgsWkbTypes.PointGeometry:
+                sym_size = symbol.size(self.symcontext)
+                color = qcolor2kmlcolor(symbol.color())
+            elif geomtype == QgsWkbTypes.LineGeometry:
+                sym_size = symbol.width()
+                color = qcolor2kmlcolor(symbol.color())
+                key = (sym_size, color)
+            else:
+                symbol_layer = symbol.symbolLayer(0)
+                sym_size = symbol_layer.strokeWidth()
+                color = qcolor2kmlcolor(symbol_layer.color())
+            key = (sym_size, color)
+            if key in self.cat_styles:
+                # self.feedback.pushInfo('  catindex in cat_styles')
+                kml_item.style = self.cat_styles[key]
+                # self.feedback.pushInfo('  style {}'.format(kml_item.style))
 
     def initStyles(self, symtype, google_icon, name_field, geomtype, layer, render, kml):
         # self.feedback.pushInfo('initStyles type: {}'.format(symtype))
-        if symtype == 1:
+        if symtype == 1: # Single Symbol
             symbol = render.symbol()
             self.simple_style = simplekml.Style()
             if geomtype == QgsWkbTypes.PointGeometry:
@@ -507,14 +532,12 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 self.simple_style.polystyle.color = qcolor2kmlcolor(symbol_layer.color())
                 if name_field:
                     self.simple_style.iconstyle.scale = 0
-        else:
+        elif symtype == 2: # Categorized Symbols
             self.style_field = render.classAttribute()
             for idx, category in enumerate(render.categories()):
                 cat_style = simplekml.Style()
                 symbol = category.symbol()
-                value = category.value()
                 # self.feedback.pushInfo(' categories idx: {}'.format(idx))
-                # self.feedback.pushInfo(' categories value: {}'.format(value))
                 if geomtype == QgsWkbTypes.PointGeometry:
                     # self.feedback.pushInfo('  PointGeometry')
                     sym_size = symbol.size(self.symcontext)
@@ -551,6 +574,53 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     if name_field:
                         cat_style.iconstyle.scale = 0
                 self.cat_styles[idx] = cat_style
+        else: # Graduated Symbols
+            self.style_field = render.classAttribute()
+            for idx, range in enumerate(render.ranges()):
+                cat_style = simplekml.Style()
+                symbol = range.symbol()
+                # self.feedback.pushInfo(' categories idx: {}'.format(idx))
+                if geomtype == QgsWkbTypes.PointGeometry:
+                    # self.feedback.pushInfo('  PointGeometry')
+                    sym_size = symbol.size(self.symcontext)
+                    color = qcolor2kmlcolor(symbol.color())
+                    # self.feedback.pushInfo('sym_size: {}'.format(sym_size))
+                    if google_icon is None:
+                        bounds = symbol.bounds(QPointF(0, 0), self.symcontext)
+                        size = bounds.width()
+                        if bounds.height() > size:
+                            size = bounds.height()
+                        size = math.ceil(size * 1.1)
+                        name = 'icon{}.png'.format(idx)
+                        path = os.path.join(self.temp_dir, name)
+                        self.png_icons.append(path)
+                        symbol.exportImage(path, "png", QSize(size, size))
+                        kml.addfile(path)
+                        cat_style.iconstyle.scale = sym_size / 15
+                        cat_style.iconstyle.icon.href = 'files/' + name
+                    else:
+                        cat_style.iconstyle.scale = sym_size / 10
+                        cat_style.iconstyle.icon.href = GOOGLE_ICONS[self.google_icons[google_icon]]
+                        cat_style.iconstyle.color = color
+                elif geomtype == QgsWkbTypes.LineGeometry:
+                    # self.feedback.pushInfo('  LineGeometry')
+                    color = qcolor2kmlcolor(symbol.color())
+                    cat_style.linestyle.color = color
+                    sym_size = symbol.width()
+                    cat_style.linestyle.width = sym_size * self.line_width_factor
+                    if name_field:
+                        cat_style.linestyle.gxlabelvisibility = True
+                else:
+                    # self.feedback.pushInfo('  PolygonGeometry')
+                    symbol_layer = symbol.symbolLayer(0)
+                    sym_size = symbol_layer.strokeWidth()
+                    color = qcolor2kmlcolor(symbol_layer.color())
+                    cat_style.linestyle.color = qcolor2kmlcolor(symbol_layer.strokeColor())
+                    cat_style.linestyle.width = sym_size * self.line_width_factor
+                    cat_style.polystyle.color = color
+                    if name_field:
+                        cat_style.iconstyle.scale = 0
+                self.cat_styles[(sym_size,color)] = cat_style
 
     def cleanup(self):
         for icon in self.png_icons:
