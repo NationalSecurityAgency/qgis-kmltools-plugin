@@ -5,7 +5,7 @@ from qgis.PyQt.QtGui import QIcon
 
 from qgis.core import (
     QgsCoordinateTransform, QgsCoordinateReferenceSystem,
-    QgsProject, QgsRenderContext, QgsWkbTypes, Qgis)
+    QgsProject, QgsRenderContext, QgsWkbTypes, Qgis, QgsExpression, QgsExpressionContext, QgsExpressionContextUtils)
 
 from qgis.core import (
     QgsProcessing,
@@ -326,21 +326,26 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         self.cat_styles = {}
         kml = simplekml.Kml()
         kml.resetidcounter()
-        render = layer.renderer()
-        # self.feedback.pushInfo('renderer class: {}'.format(render))
+        self.render = layer.renderer()
+        self.exp_context = QgsExpressionContext()
+        self.exp_context.appendScopes(QgsExpressionContextUtils.globalProjectLayerScopes(layer))
         if export_style:
-            render_type = render.type()
+            render_type = self.render.type()
             if render_type == 'singleSymbol':
                 export_style = 1
             elif render_type == 'categorizedSymbol':
+                style_field = self.render.classAttribute()
+                self.field_exp = QgsExpression(style_field)
                 export_style = 2
             elif render_type == 'graduatedSymbol':
+                style_field = self.render.classAttribute()
+                self.field_exp = QgsExpression(style_field)
                 export_style = 3
             else:
                 feedback.reportError('Only single, categorized, and graduated symbol styles can be exported. Processing will continue without symbol style export.')
                 export_style = 0
             if export_style:
-                self.initStyles(export_style, google_icon, name_field, geomtype, layer, render, kml)
+                self.initStyles(export_style, google_icon, name_field, geomtype, layer, kml)
 
         folder = kml.newfolder(name=source.sourceName())
         altitude = 0
@@ -412,7 +417,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                                 ib.append([(pt.x(), pt.y(), altitude) for pt in part.interiorRing(i)])
                         kmlpart.innerboundaryis = ib
 
-            self.exportStyle(kml_item, feature, export_style, render, geomtype)
+            self.exportStyle(kml_item, feature, export_style, geomtype)
             if name_field:
                 self.exportName(kml_item, feature[name_field])
 
@@ -456,28 +461,36 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
 
         return({})
 
-    def exportStyle(self, kml_item, feature, export_style, render, geomtype):
+    def exportStyle(self, kml_item, feature, export_style, geomtype):
         # self.feedback.pushInfo('exportStyle')
         if export_style == 1:
             kml_item.style = self.simple_style
         elif export_style == 2:
-            value = feature[self.style_field]
-            catindex = render.categoryIndexForValue(value)
-            # self.feedback.pushInfo('  categoryIndexForValue {}'.format(catindex))
-            # self.feedback.pushInfo('  feature type {}'.format(type(value)))
+            # Determine the category expression value 
+            self.exp_context.setFeature(feature)
+            try:
+                value = self.field_exp.evaluate(self.exp_context)
+                # Which category does feature value fall in
+                catindex = self.render.categoryIndexForValue(value)
+            except Exception:
+                return
+            # If it is outside the category ranges assign it to the 0 index
             if catindex not in self.cat_styles:
-                # self.feedback.pushInfo('  catindex not in cat_styles')
                 catindex = 0
             if catindex in self.cat_styles:
-                # self.feedback.pushInfo('  catindex in cat_styles')
                 kml_item.style = self.cat_styles[catindex]
-                # self.feedback.pushInfo('  style {}'.format(kml_item.style))
         elif export_style == 3:
-            value = feature[self.style_field]
-            range = render.rangeForValue(value)
-            if not range:
-                # self.feedback.pushInfo('  This should not happen')
+            # Determine the gradient expression value 
+            self.exp_context.setFeature(feature)
+            try:
+                value = self.field_exp.evaluate(self.exp_context)
+                # Which range of the gradient does this value fall in
+                range = self.render.rangeForValue(value)
+            except Exception:
+                # self.feedback.pushInfo('  Expression failed')
                 return
+            # Get the symbol related to the specified gradient range
+            # For lines and polygons we would use the color and line sizes
             symbol = range.symbol()
             if geomtype == QgsWkbTypes.PointGeometry:
                 sym_size = symbol.size(self.symcontext)
@@ -496,10 +509,10 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 kml_item.style = self.cat_styles[key]
                 # self.feedback.pushInfo('  style {}'.format(kml_item.style))
 
-    def initStyles(self, symtype, google_icon, name_field, geomtype, layer, render, kml):
+    def initStyles(self, symtype, google_icon, name_field, geomtype, layer, kml):
         # self.feedback.pushInfo('initStyles type: {}'.format(symtype))
         if symtype == 1: # Single Symbol
-            symbol = render.symbol()
+            symbol = self.render.symbol()
             self.simple_style = simplekml.Style()
             if geomtype == QgsWkbTypes.PointGeometry:
                 sym_size = symbol.size(self.symcontext)
@@ -532,8 +545,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 if name_field:
                     self.simple_style.iconstyle.scale = 0
         elif symtype == 2: # Categorized Symbols
-            self.style_field = render.classAttribute()
-            for idx, category in enumerate(render.categories()):
+            for idx, category in enumerate(self.render.categories()):
                 cat_style = simplekml.Style()
                 symbol = category.symbol()
                 # self.feedback.pushInfo(' categories idx: {}'.format(idx))
@@ -574,8 +586,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                         cat_style.iconstyle.scale = 0
                 self.cat_styles[idx] = cat_style
         else: # Graduated Symbols
-            self.style_field = render.classAttribute()
-            for idx, range in enumerate(render.ranges()):
+            for idx, range in enumerate(self.render.ranges()):
                 cat_style = simplekml.Style()
                 symbol = range.symbol()
                 # self.feedback.pushInfo(' categories idx: {}'.format(idx))
