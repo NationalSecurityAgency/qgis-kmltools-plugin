@@ -36,21 +36,21 @@ class KMLTools(object):
 
     def initGui(self):
         """Create the menu & tool bar items within QGIS"""
-        icon = QIcon(os.path.dirname(__file__) + "/icons/import.png")
+        icon = QIcon(os.path.dirname(__file__) + "/icons/import.svg")
         self.kmlAction = QAction(icon, "Import KML/KMZ", self.iface.mainWindow())
         self.kmlAction.triggered.connect(self.showDialog)
         self.kmlAction.setCheckable(False)
         self.iface.addToolBarIcon(self.kmlAction)
         self.iface.addPluginToVectorMenu("KML Tools", self.kmlAction)
         # Export KML Menu
-        icon = QIcon(os.path.dirname(__file__) + "/icons/export.png")
+        icon = QIcon(os.path.dirname(__file__) + "/icons/export.svg")
         self.kmlExportAction = QAction(icon, "Export KMZ", self.iface.mainWindow())
         self.kmlExportAction.triggered.connect(self.exportKMZ)
         self.kmlExportAction.setCheckable(False)
         self.iface.addToolBarIcon(self.kmlExportAction)
         self.iface.addPluginToVectorMenu("KML Tools", self.kmlExportAction)
         # Expansion of HTML description field
-        icon = QIcon(os.path.dirname(__file__) + "/icons/html.png")
+        icon = QIcon(os.path.dirname(__file__) + "/icons/html.svg")
         self.htmlDescAction = QAction(icon, "Expand HTML description field", self.iface.mainWindow())
         self.htmlDescAction.triggered.connect(self.htmlDescDialog)
         self.htmlDescAction.setCheckable(False)

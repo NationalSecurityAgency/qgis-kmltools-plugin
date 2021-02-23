@@ -39,11 +39,11 @@ code {
 <h1>QGIS KML Tools</h1>
 <p>The native QGIS importer creates separate layers for each folder within a KML/KMZ. If there are hundreds or thousands of layers, the import can be very slow, crash QGIS, or create an undesirable number of layers. This plugin only creates one point layer, one line layer, and one polygon layer. This makes the KML/KMZ import very quick. It adds the nested folder structure to a field in the QGIS layer which can then be used for sorting and filtering based on the previous folders in the KML. A KMZ can be exported with simple, categorized, graduated QGIS styling for points, lines and polygons.</p>
 <p><strong><em>KML Tools</em></strong> can be found in the QGIS menu under <strong><em>Vector-&gt;KML Tools</em></strong>, on the tool bar, or in the Processing Toolbox under <strong><em>KML Tools</em></strong>*. It has three tools.</p>
-<h2><img src="icons/import.png" alt="Import KML/KMZ"> <strong><em>Import KML/KMZ</em></strong></h2>
+<h2><img src="icons/import.svg" alt="Import KML/KMZ"> <strong><em>Import KML/KMZ</em></strong></h2>
 <p>This functions as the name implies. It's interface is simple. Click on the ... button on the right of <strong><em>Import KML/KMZ file</em></strong> to select your file. Choose whether you want to include points, lines or polygons from the KML as QGIS output layers. If the KML file does not contain one of these geometry types, then the associated layer will not be created anyway. </p>
 <div style="text-align:center"><img src="doc/import.jpg" alt="Import KML/KMZ"></div>
 
-<h2><img src="icons/html.png" alt="HTML description expansion"> <strong><em>Expand HTML description field</em></strong></h2>
+<h2><img src="icons/html.svg" alt="HTML description expansion"> <strong><em>Expand HTML description field</em></strong></h2>
 <p>This attempts to expand HTML tag/value pairs into separate fields. Before this can be run, the KML needs to be imported into QGIS with <strong><em>Import KML/KMZ</em></strong>. Next select from <strong><em>How to expand the description field</em></strong> option one of the following:</p>
 <ul>
 <li><strong><em>Expand from a 2 column HTML table</em></strong> - If the KML has a description entry that contains an HTML table with two columns were the first column represents a table or field name and the second column its value, then this option will parse these fields and add them to a new attribute table field.  This is an example of data that it expands.</li>
@@ -78,7 +78,7 @@ code {
 <div style="text-align:center"><img src="doc/html3.jpg" alt="HTML Expander"></div>
 
 <p>Because there is no standard way of including additional information in the KML description entry, it is difficult to come up with a way to expand all cases. Right now this just works with two column HTML tables, <strong><em>tag=value</em></strong>, and <strong><em>tag: value</em></strong> pairs, but please let us know if there are other description formats that you would like us to tackle.</p>
-<h2><img src="icons/export.png" alt="Export KMZ"> <strong><em>Export KMZ</em></strong></h2>
+<h2><img src="icons/export.svg" alt="Export KMZ"> <strong><em>Export KMZ</em></strong></h2>
 <p>This provides the ability to export a QGIS point, line, or polygon layer as a Google Earth KMZ file. It can export single, categorized, and graduated QGIS symbology. For others it will default to not exporting the symbology. For points it captures the entire symbol, but for lines and polygons only simple line colors, line widths, and solid polygon fills can be exported due the the limitations of the KML specification. It can export date and time in one or two fields as a time stamp, time begin and time end. It also handles altitude either from QGIS Z geometries or from an attribute field.</p>
 <div style="text-align:center"><img src="doc/export.jpg" alt="Export KMZ"></div>
 

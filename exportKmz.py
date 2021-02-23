@@ -824,7 +824,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         return 'exportkmz'
 
     def icon(self):
-        return QIcon(os.path.dirname(__file__) + '/icons/export.png')
+        return QIcon(os.path.dirname(__file__) + '/icons/export.svg')
 
     def displayName(self):
         return 'Export KMZ'

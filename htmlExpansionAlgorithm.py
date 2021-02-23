@@ -125,7 +125,7 @@ class HTMLExpansionAlgorithm(QgsProcessingAlgorithm):
         return 'htmlexpansion'
 
     def icon(self):
-        return QIcon(os.path.dirname(__file__) + '/icons/html.png')
+        return QIcon(os.path.dirname(__file__) + '/icons/html.svg')
 
     def displayName(self):
         return tr('Expand HTML description field')

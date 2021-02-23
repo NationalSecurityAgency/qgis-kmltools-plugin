@@ -18,7 +18,7 @@ class KmlToolsProvider(QgsProcessingProvider):
         # self.addAlgorithm(ConvertGroundOverlayAlgorithm())
         
     def icon(self):
-        return QIcon(os.path.dirname(__file__) + '/icons/import.png')
+        return QIcon(os.path.dirname(__file__) + '/icons/import.svg')
         
     def id(self):
         return 'kmltools'

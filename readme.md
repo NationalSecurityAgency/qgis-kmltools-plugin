@@ -4,12 +4,12 @@ The native QGIS importer creates separate layers for each folder within a KML/KM
 
 ***KML Tools*** can be found in the QGIS menu under ***Vector->KML Tools***, on the tool bar, or in the Processing Toolbox under ***KML Tools****. It has three tools.
 
-## <img src="icons/import.png" alt="Import KML/KMZ"> ***Import KML/KMZ***
+## <img src="icons/import.svg" alt="Import KML/KMZ"> ***Import KML/KMZ***
 This functions as the name implies. It's interface is simple. Click on the ... button on the right of ***Import KML/KMZ file*** to select your file. Choose whether you want to include points, lines or polygons from the KML as QGIS output layers. If the KML file does not contain one of these geometry types, then the associated layer will not be created anyway. 
 
 <div style="text-align:center"><img src="doc/import.jpg" alt="Import KML/KMZ"></div>
 
-## <img src="icons/html.png" alt="HTML description expansion"> ***Expand HTML description field***
+## <img src="icons/html.svg" alt="HTML description expansion"> ***Expand HTML description field***
 This attempts to expand HTML tag/value pairs into separate fields. Before this can be run, the KML needs to be imported into QGIS with ***Import KML/KMZ***. Next select from ***How to expand the description field*** option one of the following:
 
 * ***Expand from a 2 column HTML table*** - If the KML has a description entry that contains an HTML table with two columns were the first column represents a table or field name and the second column its value, then this option will parse these fields and add them to a new attribute table field.  This is an example of data that it expands.
@@ -47,7 +47,7 @@ The ***Processing Toolbox*** version of ***Expand HTML description table*** oper
 
 Because there is no standard way of including additional information in the KML description entry, it is difficult to come up with a way to expand all cases. Right now this just works with two column HTML tables, ***tag=value***, and ***tag: value*** pairs, but please let us know if there are other description formats that you would like us to tackle.
 
-## <img src="icons/export.png" alt="Export KMZ"> ***Export KMZ***
+## <img src="icons/export.svg" alt="Export KMZ"> ***Export KMZ***
 This provides the ability to export a QGIS point, line, or polygon layer as a Google Earth KMZ file. It can export single, categorized, and graduated QGIS symbology. For others it will default to not exporting the symbology. For points it captures the entire symbol, but for lines and polygons only simple line colors, line widths, and solid polygon fills can be exported due the the limitations of the KML specification. It can export date and time in one or two fields as a time stamp, time begin and time end. It also handles altitude either from QGIS Z geometries or from an attribute field.
 
 <div style="text-align:center"><img src="doc/export.jpg" alt="Export KMZ"></div>
