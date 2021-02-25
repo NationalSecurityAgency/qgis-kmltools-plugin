@@ -336,9 +336,19 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         self.cat_styles = {}
         kml = simplekml.Kml()
         kml.resetidcounter()
-        self.render = layer.renderer()
-        self.exp_context = QgsExpressionContext()
-        self.exp_context.appendScopes(QgsExpressionContextUtils.globalProjectLayerScopes(layer))
+        if layer:
+            try:
+                self.render = layer.renderer()
+                self.exp_context = QgsExpressionContext()
+                self.exp_context.appendScopes(QgsExpressionContextUtils.globalProjectLayerScopes(layer))
+            except Exception:
+                if export_style:
+                    export_style = 0
+                    feedback.reportError('Layer style cannot be determined. Processing will continue without symbol style export.')
+        else:
+            if export_style:
+                feedback.reportError('There appears to be a valid source, but not a valid layer style. Processing will continue without symbol style export.')
+                export_style = 0
         if export_style:
             render_type = self.render.type()
             if render_type == 'singleSymbol':
@@ -355,7 +365,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 feedback.reportError('Only single, categorized, and graduated symbol styles can be exported. Processing will continue without symbol style export.')
                 export_style = 0
             if export_style:
-                self.initStyles(export_style, google_icon, name_field, geomtype, layer, kml)
+                self.initStyles(export_style, google_icon, name_field, geomtype, kml)
 
         folder = kml.newfolder(name=source.sourceName())
         altitude = 0
@@ -535,7 +545,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 kml_item.style = self.cat_styles[key]
                 # self.feedback.pushInfo('  style {}'.format(kml_item.style))
 
-    def initStyles(self, symtype, google_icon, name_field, geomtype, layer, kml):
+    def initStyles(self, symtype, google_icon, name_field, geomtype, kml):
         # self.feedback.pushInfo('initStyles type: {}'.format(symtype))
         if symtype == 1: # Single Symbol
             symbol = self.render.symbol()
