@@ -57,7 +57,7 @@ class KMLTools(object):
         self.iface.addToolBarIcon(self.htmlDescAction)
         self.iface.addPluginToVectorMenu("KML Tools", self.htmlDescAction)
         # Help
-        icon = QIcon(os.path.dirname(__file__) + '/icons/help.png')
+        icon = QIcon(os.path.dirname(__file__) + '/icons/help.svg')
         self.helpAction = QAction(icon, "Help", self.iface.mainWindow())
         self.helpAction.triggered.connect(self.help)
         self.iface.addPluginToVectorMenu('KML Tools', self.helpAction)
