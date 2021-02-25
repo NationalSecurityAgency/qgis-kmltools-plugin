@@ -61,6 +61,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
     PrmAltitudeMode = 'AltitudeMode'
     PrmAltitudeModeField = 'AltitudeModeField'
     PrmAltitudeField = 'AltitudeField'
+    PrmAltitudeAddend = 'AltitudeAddend'
     PrmDateTimeStampField = 'DateTimeStampField'
     PrmDateStampField = 'DateStampField'
     PrmTimeStampField = 'TimeStampField'
@@ -162,6 +163,15 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 parentLayerParameterName=self.PrmInputLayer,
                 type=QgsProcessingParameterField.Any,
                 defaultValue='altitude',
+                optional=True
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterNumber(
+                self.PrmAltitudeAddend,
+                'Altitude addend (value must be in meters)',
+                type=QgsProcessingParameterNumber.Double,
+                defaultValue=0,
                 optional=True
             )
         )
@@ -278,7 +288,6 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         geomtype = QgsWkbTypes.geometryType(wkbtype)
         if geomtype == QgsWkbTypes.UnknownGeometry or geomtype == QgsWkbTypes.NullGeometry:
             raise QgsProcessingException('Algorithm input is not a valid point, line, or polygon layer.')
-            
         layer = self.parameterAsLayer(parameters, self.PrmInputLayer, context)
         if self.PrmNameField not in parameters or parameters[self.PrmNameField] is None:
             name_field = None
@@ -299,6 +308,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             default_alt_mode = ALTITUDE_MODES[self.parameterAsEnum(parameters, self.PrmAltitudeMode, context)]
         alt_mode_field = self.parameterAsString(parameters, self.PrmAltitudeModeField, context)
         altitude_field = self.parameterAsString(parameters, self.PrmAltitudeField, context)
+        altitude_addend = self.parameterAsDouble(parameters, self.PrmAltitudeAddend, context)
         date_time_stamp_field = self.parameterAsString(parameters, self.PrmDateTimeStampField, context)
         date_stamp_field = self.parameterAsString(parameters, self.PrmDateStampField, context)
         time_stamp_field = self.parameterAsString(parameters, self.PrmTimeStampField, context)
@@ -378,9 +388,9 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     if kml_item is None:
                         kml_item = kmlpart
                     if hasz:
-                        kmlpart.coords = [(pt.x(), pt.y(), pt.z())]
+                        kmlpart.coords = [(pt.x(), pt.y(), pt.z() + altitude_addend)]
                     else:
-                        kmlpart.coords = [(pt.x(), pt.y(), altitude)]
+                        kmlpart.coords = [(pt.x(), pt.y(), altitude + altitude_addend)]
             elif geomtype == QgsWkbTypes.LineGeometry:  # LINES
                 for part in geom.parts():
                     kmlpart = kmlgeom.newlinestring()
@@ -388,9 +398,9 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     if kml_item is None:
                         kml_item = kmlpart
                     if hasz:
-                        kmlpart.coords = [(pt.x(), pt.y(), pt.z()) for pt in part]
+                        kmlpart.coords = [(pt.x(), pt.y(), pt.z() + altitude_addend) for pt in part]
                     else:
-                        kmlpart.coords = [(pt.x(), pt.y(), altitude) for pt in part]
+                        kmlpart.coords = [(pt.x(), pt.y(), altitude + altitude_addend) for pt in part]
             elif geomtype == QgsWkbTypes.PolygonGeometry:  # POLYGONS
                 if name_field:
                     centroid = geom.centroid().asPoint()
@@ -405,16 +415,16 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     num_interior_rings = part.numInteriorRings()
                     ext_ring = part.exteriorRing()
                     if hasz:
-                        kmlpart.outerboundaryis = [(pt.x(), pt.y(), pt.z()) for pt in ext_ring]
+                        kmlpart.outerboundaryis = [(pt.x(), pt.y(), pt.z() + altitude_addend) for pt in ext_ring]
                     else:
-                        kmlpart.outerboundaryis = [(pt.x(), pt.y(), altitude) for pt in ext_ring]
+                        kmlpart.outerboundaryis = [(pt.x(), pt.y(), altitude + altitude_addend) for pt in ext_ring]
                     if num_interior_rings:
                         ib = []
                         for i in range(num_interior_rings):
                             if hasz:
-                                ib.append([(pt.x(), pt.y(), pt.z()) for pt in part.interiorRing(i)])
+                                ib.append([(pt.x(), pt.y(), pt.z() + altitude_addend) for pt in part.interiorRing(i)])
                             else:
-                                ib.append([(pt.x(), pt.y(), altitude) for pt in part.interiorRing(i)])
+                                ib.append([(pt.x(), pt.y(), altitude + altitude_addend) for pt in part.interiorRing(i)])
                         kmlpart.innerboundaryis = ib
 
             self.exportStyle(kml_item, feature, export_style, geomtype)
@@ -466,7 +476,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         if export_style == 1:
             kml_item.style = self.simple_style
         elif export_style == 2:
-            # Determine the category expression value 
+            # Determine the category expression value
             self.exp_context.setFeature(feature)
             try:
                 value = self.field_exp.evaluate(self.exp_context)
@@ -480,12 +490,28 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             if catindex in self.cat_styles:
                 kml_item.style = self.cat_styles[catindex]
         elif export_style == 3:
-            # Determine the gradient expression value 
+            # Determine the gradient expression value
             self.exp_context.setFeature(feature)
             try:
                 value = self.field_exp.evaluate(self.exp_context)
                 # Which range of the gradient does this value fall in
                 range = self.render.rangeForValue(value)
+                if range is None:
+                    minimum = 1e16
+                    maximum = -1e16
+                    for ran in self.render.ranges():
+                        if ran.lowerValue() < minimum:
+                            minimum = ran.lowerValue()
+                        if ran.upperValue() > maximum:
+                            maximum = ran.upperValue()
+                    if value > maximum:
+                        value = maximum
+                    if value < minimum:
+                        value = minimum
+                    range = self.render.rangeForValue(value)
+                    if range is None:
+                        self.feedback.pushInfo('An error occured in defining the range object')
+                        return
             except Exception:
                 # self.feedback.pushInfo('  Expression failed')
                 return

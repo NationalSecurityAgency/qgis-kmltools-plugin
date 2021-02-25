@@ -5,7 +5,7 @@ The native QGIS importer creates separate layers for each folder within a KML/KM
 ***KML Tools*** can be found in the QGIS menu under ***Vector->KML Tools***, on the tool bar, or in the Processing Toolbox under ***KML Tools****. It has three tools.
 
 ## <img src="icons/import.svg" alt="Import KML/KMZ"> ***Import KML/KMZ***
-This functions as the name implies. It's interface is simple. Click on the ... button on the right of ***Import KML/KMZ file*** to select your file. Choose whether you want to include points, lines or polygons from the KML as QGIS output layers. If the KML file does not contain one of these geometry types, then the associated layer will not be created anyway. 
+This functions as the name implies. It's interface is simple. Click on the ... button on the right of ***Import KML/KMZ file*** to select your file. Choose whether you want to include points, lines or polygons from the KML as QGIS output layers. If the KML file does not contain one of these geometry types, then the associated layer will not be created anyway.
 
 <div style="text-align:center"><img src="doc/import.jpg" alt="Import KML/KMZ"></div>
 
@@ -48,7 +48,7 @@ The ***Processing Toolbox*** version of ***Expand HTML description table*** oper
 Because there is no standard way of including additional information in the KML description entry, it is difficult to come up with a way to expand all cases. Right now this just works with two column HTML tables, ***tag=value***, and ***tag: value*** pairs, but please let us know if there are other description formats that you would like us to tackle.
 
 ## <img src="icons/export.svg" alt="Export KMZ"> ***Export KMZ***
-This provides the ability to export a QGIS point, line, or polygon layer as a Google Earth KMZ file. It can export single, categorized, and graduated QGIS symbology. For others it will default to not exporting the symbology. For points it captures the entire symbol, but for lines and polygons only simple line colors, line widths, and solid polygon fills can be exported due the the limitations of the KML specification. It can export date and time in one or two fields as a time stamp, time begin and time end. It also handles altitude either from QGIS Z geometries or from an attribute field.
+This provides the ability to export a QGIS point, line, or polygon layer as a Google Earth KMZ file. It can export single, categorized, and graduated QGIS symbology. For others it will default to not exporting the symbology. For points it captures the entire symbol, but for lines and polygons only simple line colors, line widths, and solid polygon fills can be exported due the the limitations of the KML specification. It can export date and time in one or two fields as a time stamp, time begin and time end. It also handles altitude either from QGIS Z geometries or from an attribute field and eventually add a constant quantity.
 
 <div style="text-align:center"><img src="doc/export.jpg" alt="Export KMZ"></div>
 
@@ -62,6 +62,7 @@ The following describes some of the functionality.
 * ***Default altitude mode when not obtained from the attribute table*** - When altitude is not obtained from a field in the attribute table, then this value is used.
 * ***Altitude mode field*** - Specify a field in the attribute table to be used as the altitude mode.
 * ***Altitude field*** - Specify a field in the attribute table to be used as the altitude. This value must be in meters.
+* ***Altitude addend*** - Specify a quantity to be used as addend for altitude (from Altitude field or Z attribute). This value must be in meters.
 * ***Date/Time stamp field*** - This specifies a field in the attribute table that contains a date and time. This can be a QGIS QDateTime field, QDate field, QString field, int or double field. It attempts to smartly parse any string field. If the field is an int or double then at assumes the value is EPOCH time in seconds. In the advanced parameters, separate date and time fields can be used.
 * ***Date/Time span begin field*** - This selects a field for the date/time span begin field.
 * ***Date/Time span end field*** - This selects a field for the date/time span end field.
