@@ -1,6 +1,6 @@
 PLUGINNAME = kmltools
 PLUGINS = "$(HOME)"/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins/$(PLUGINNAME)
-PY_FILES = kmltools.py __init__.py importKml.py htmlExpansionDialog.py htmlParser.py htmlExpansionAlgorithm.py exportKmz.py provider.py settings.py
+PY_FILES = kmltools.py __init__.py importKml.py htmlExpansionDialog.py htmlParser.py htmlExpansionAlgorithm.py exportKmz.py provider.py settings.py convertGroundOverlays.py
 EXTRAS = metadata.txt icon.png
 UI_FILES = htmlExpansion.ui htmlFields.ui
 

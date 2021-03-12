@@ -56,6 +56,13 @@ class KMLTools(object):
         self.htmlDescAction.setCheckable(False)
         self.iface.addToolBarIcon(self.htmlDescAction)
         self.iface.addPluginToVectorMenu("KML Tools", self.htmlDescAction)
+        # Extract KML/KMZ Ground Overlays
+        icon = QIcon(os.path.dirname(__file__) + "/icons/gnd_overlay_import.svg")
+        self.extractGndAction = QAction(icon, "Extract KML Ground Overlays", self.iface.mainWindow())
+        self.extractGndAction.triggered.connect(self.extractGroundOverlays)
+        self.extractGndAction.setCheckable(False)
+        self.iface.addToolBarIcon(self.extractGndAction)
+        self.iface.addPluginToVectorMenu("KML Tools", self.extractGndAction)
         # Help
         icon = QIcon(os.path.dirname(__file__) + '/icons/help.svg')
         self.helpAction = QAction(icon, "Help", self.iface.mainWindow())
@@ -70,10 +77,12 @@ class KMLTools(object):
         self.iface.removePluginVectorMenu("KML Tools", self.kmlAction)
         self.iface.removePluginVectorMenu("KML Tools", self.kmlExportAction)
         self.iface.removePluginVectorMenu("KML Tools", self.htmlDescAction)
+        self.iface.removePluginVectorMenu("KML Tools", self.extractGndAction)
         self.iface.removePluginVectorMenu("KML Tools", self.helpAction)
         self.iface.removeToolBarIcon(self.kmlAction)
         self.iface.removeToolBarIcon(self.kmlExportAction)
         self.iface.removeToolBarIcon(self.htmlDescAction)
+        self.iface.removeToolBarIcon(self.extractGndAction)
         QgsApplication.processingRegistry().removeProvider(self.provider)
 
     def showDialog(self):
@@ -83,6 +92,10 @@ class KMLTools(object):
     def exportKMZ(self):
         """Display the KML Dialog window."""
         processing.execAlgorithmDialog('kmltools:exportkmz', {})
+
+    def extractGroundOverlays(self):
+        """Display the KML Dialog window."""
+        processing.execAlgorithmDialog('kmltools:extractgroundoverlays', {})
 
     def htmlDescDialog(self):
         """Display the KML Dialog window."""

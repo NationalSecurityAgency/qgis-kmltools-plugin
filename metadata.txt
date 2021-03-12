@@ -2,7 +2,7 @@
 name=KML Tools
 qgisMinimumVersion=3.4
 description=Fast KML/KMZ importer, exporter, with description field expansion
-version=3.1.6
+version=3.1.7
 author=C Hamilton
 email=adenaculture@gmail.com
 about=
