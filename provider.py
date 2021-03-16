@@ -5,6 +5,7 @@ from .htmlExpansionAlgorithm import HTMLExpansionAlgorithm
 from .importKml import ImportKmlAlgorithm
 from .exportKmz import ExportKmzAlgorithm
 from .convertGroundOverlays import ConvertGroundOverlayAlgorithm
+from .createGroundOverlayGeoTiff import CreateGroundOverlayGeoTiffAlgorithm
 
 class KmlToolsProvider(QgsProcessingProvider):
 
@@ -16,6 +17,7 @@ class KmlToolsProvider(QgsProcessingProvider):
         self.addAlgorithm(ImportKmlAlgorithm())
         self.addAlgorithm(ExportKmzAlgorithm())
         self.addAlgorithm(ConvertGroundOverlayAlgorithm())
+        self.addAlgorithm(CreateGroundOverlayGeoTiffAlgorithm())
         
     def icon(self):
         return QIcon(os.path.dirname(__file__) + '/icons/import.svg')
