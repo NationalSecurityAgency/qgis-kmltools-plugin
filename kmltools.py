@@ -105,7 +105,7 @@ class KMLTools(object):
 
     def createGroundOverlayGeoTIFF(self):
         """Display the KML Dialog window."""
-        processing.execAlgorithmDialog('kmltools:creategroundoverlaygeotiff', {})
+        processing.execAlgorithmDialog('kmltools:groundoverlay2geotiff', {})
 
     def htmlDescDialog(self):
         """Display the KML Dialog window."""

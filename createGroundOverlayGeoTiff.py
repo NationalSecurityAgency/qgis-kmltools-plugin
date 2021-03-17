@@ -157,13 +157,13 @@ class CreateGroundOverlayGeoTiffAlgorithm(QgsProcessingAlgorithm):
         return (results)
 
     def name(self):
-        return 'creategroundoverlaygeotiff'
+        return 'groundoverlay2geotiff'
 
     def icon(self):
         return QIcon(os.path.dirname(__file__) + '/icons/gnd_overlay_import.svg')
 
     def displayName(self):
-        return tr('Create Ground Overlay GeoTIFF Image')
+        return tr('Ground Overlay to GeoTIFF Image')
 
     def group(self):
         return tr('Raster conversion')
@@ -176,6 +176,14 @@ class CreateGroundOverlayGeoTiffAlgorithm(QgsProcessingAlgorithm):
         if not os.path.exists(file):
             return ''
         return QUrl.fromLocalFile(file).toString(QUrl.FullyEncoded)
+
+    def shortHelpString(self):
+        file = os.path.dirname(__file__) + '/doc/gndoverlay2tiff.help'
+        if not os.path.exists(file):
+            return ''
+        with open(file) as helpf:
+            help = helpf.read()
+        return help
 
     def createInstance(self):
         return CreateGroundOverlayGeoTiffAlgorithm()

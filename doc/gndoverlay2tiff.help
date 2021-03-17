@@ -1,0 +1,1 @@
+Convert an input image to an output GeoTiff image using KML Ground Overlay parameters. If rotation is involved, the output GeoTiff is compatible with QGIS but may not be compatible with other programs. If needed, run the output of this algorithm through "GDAL->Raster projections->Warp" to make it compatible with other programs.

@@ -1,15 +1,20 @@
 # QGIS KML Tools
 
-The native QGIS importer creates separate layers for each folder within a KML/KMZ. If there are hundreds or thousands of layers, the import can be very slow, crash QGIS, or create an undesirable number of layers. This plugin only creates one point layer, one line layer, and one polygon layer. This makes the KML/KMZ import very quick. It adds the nested folder structure to a field in the QGIS layer which can then be used for sorting and filtering based on the previous folders in the KML. A KMZ can be exported with simple, categorized, graduated QGIS styling for points, lines and polygons.
+The native QGIS importer creates separate layers for each folder within a KML/KMZ. If there are hundreds or thousands of layers, the import can be very slow, crash QGIS, or create an undesirable number of layers. This plugin only creates one point layer, one line layer, and one polygon layer. This makes the KML/KMZ import very quick. It adds the nested folder structure to a field in the QGIS layer which can then be used for sorting and filtering based on the folder structure in the KML. A KMZ can be exported with simple, categorized, and graduated QGIS styling for points, lines and polygons. Recently, limited support has been added to convert embedded ground overlay images into GeoTIFF images.
 
-***KML Tools*** can be found in the QGIS menu under ***Vector->KML Tools***, on the tool bar, or in the Processing Toolbox under ***KML Tools****. It has three tools.
+***KML Tools*** can be found in the QGIS menu under ***Vector->KML Tools*** and ***Raster->KML tools***, on the tool bar, or in the Processing Toolbox under ***KML Tools****. It has three vector tools and two raster tools. This shows the tools in the Processing Toolbox.
 
-## <img src="icons/import.svg" alt="Import KML/KMZ"> ***Import KML/KMZ***
+<div style="text-align:center"><img src="doc/processing.jpg" alt="Processing Toolbox"></div>
+
+
+## Vector Tools
+
+### <img src="icons/import.svg" alt="Import KML/KMZ"> ***Import KML/KMZ***
 This functions as the name implies. It's interface is simple. Click on the ... button on the right of ***Import KML/KMZ file*** to select your file. Choose whether you want to include points, lines or polygons from the KML as QGIS output layers. If the KML file does not contain one of these geometry types, then the associated layer will not be created anyway.
 
 <div style="text-align:center"><img src="doc/import.jpg" alt="Import KML/KMZ"></div>
 
-## <img src="icons/html.svg" alt="HTML description expansion"> ***Expand HTML description field***
+### <img src="icons/html.svg" alt="HTML description expansion"> ***Expand HTML description field***
 This attempts to expand HTML tag/value pairs into separate fields. Before this can be run, the KML needs to be imported into QGIS with ***Import KML/KMZ***. Next select from ***How to expand the description field*** option one of the following:
 
 * ***Expand from a 2 column HTML table*** - If the KML has a description entry that contains an HTML table with two columns were the first column represents a table or field name and the second column its value, then this option will parse these fields and add them to a new attribute table field.  This is an example of data that it expands.
@@ -47,7 +52,7 @@ The ***Processing Toolbox*** version of ***Expand HTML description table*** oper
 
 Because there is no standard way of including additional information in the KML description entry, it is difficult to come up with a way to expand all cases. Right now this just works with two column HTML tables, ***tag=value***, and ***tag: value*** pairs, but please let us know if there are other description formats that you would like us to tackle.
 
-## <img src="icons/export.svg" alt="Export KMZ"> ***Export KMZ***
+### <img src="icons/export.svg" alt="Export KMZ"> ***Export KMZ***
 This provides the ability to export a QGIS point, line, or polygon layer as a Google Earth KMZ file. It can export single, categorized, and graduated QGIS symbology. For others it will default to not exporting the symbology. For points it captures the entire symbol, but for lines and polygons only simple line colors, line widths, and solid polygon fills can be exported due the the limitations of the KML specification. It can export date and time in one or two fields as a time stamp, time begin and time end. It also handles altitude either from QGIS Z geometries or from an attribute field and eventually add a constant quantity.
 
 <div style="text-align:center"><img src="doc/export.jpg" alt="Export KMZ"></div>
@@ -75,3 +80,30 @@ The following describes some of the functionality.
 * The rest of the advanced parameters allow the use of separate date and time fields to be combined into a single KML time stamp, time span begin, or time span end field.
 
 KML Tools does not implement the entire KML specification. It focuses on point, line and polygon geometries within the KML. If for some reason you find that it is missing something, let us know and perhaps we can add it.
+
+## Raster Tools
+
+### <img src="icons/gnd_overlay_import.svg" alt="Extract KML/KMZ Ground Overlays">  ***Extract KML/KMZ Ground Overlays***
+This algorithm looks through the KML/KMZ for KML **GroundOverlay** tags and if the associated image is embedded in the KMZ or is on the local file system it will convert it to a GeoTIFF according to the LatLonBox parameters. Note that this algorithm will not follow and extract http(s) linked images. The following shows the KML tags that are extracted. In this case etna.jpg is converted to etna.tif.
+
+<pre>    &lt;Icon&gt;
+      &lt;href&gt;etna.jpg&lt;/href&gt;
+    &lt;/Icon&gt;
+    &lt;LatLonBox&gt;
+      &lt;north&gt;37.91904192681665&lt;/north&gt;
+      &lt;south&gt;37.46543388598137&lt;/south&gt;
+      &lt;east&gt;15.35832653742206&lt;/east&gt;
+      &lt;west&gt;14.60128369746704&lt;/west&gt;
+      &lt;rotation&gt;-0.1556640799496235&lt;/rotation&gt;
+    &lt;/LatLonBox&gt;</pre>
+
+<div style="text-align:center"><img src="doc/extractgndoverlays.jpg" alt="Extract Ground Overlays"></div>
+
+The parameters are the input KML or KMZ and the location of a folder to store the images in. You can also specify whether to automatically load the converted GeoTIFF images into QGIS or not. If any images are found that cannot be converted, they will be reported in the algorithm log. If rotation is involved in the conversion process, the output GeoTIFFs are compatible with QGIS, but may not be compatible with other programs. If needed, run these images through ***GDAL->Raster projections->Warp*** to make them compatible with other programs.
+
+### <img src="icons/gnd_overlay_import.svg" alt="Extract KML/KMZ Ground Overlays"> ***Ground Overlay to GeoTIFF Image***
+
+This algorithm manually allows the user to specify an image and enter the north, south, east, west and rotation parameters to convert the input image into a GeoTIFF image. If rotation is not zero, the output GeoTiff is compatible with QGIS, but may not be compatible with other programs. If needed, run the output of this algorithm through ***GDAL->Raster projections->Warp*** to make it compatible with other programs.
+
+<div style="text-align:center"><img src="doc/gndoverlay2tiff.jpg" alt="Ground Overlay to GeoTIFF"></div>
+

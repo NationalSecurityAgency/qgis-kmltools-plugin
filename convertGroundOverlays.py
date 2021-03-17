@@ -257,6 +257,14 @@ class ConvertGroundOverlayAlgorithm(QgsProcessingAlgorithm):
             return ''
         return QUrl.fromLocalFile(file).toString(QUrl.FullyEncoded)
 
+    def shortHelpString(self):
+        file = os.path.dirname(__file__) + '/doc/extractgndoverlays.help'
+        if not os.path.exists(file):
+            return ''
+        with open(file) as helpf:
+            help = helpf.read()
+        return help
+
     def createInstance(self):
         return ConvertGroundOverlayAlgorithm()
 
