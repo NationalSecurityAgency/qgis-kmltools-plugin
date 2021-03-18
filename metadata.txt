@@ -1,8 +1,8 @@
 [general]
 name=KML Tools
-qgisMinimumVersion=3.4
+qgisMinimumVersion=3.14
 description=Fast KML/KMZ importer, exporter, with description field expansion and ground overlay to GeoTIFF conversions.
-version=3.1.7
+version=3.1.8
 author=C Hamilton
 email=adenaculture@gmail.com
 about=
@@ -16,6 +16,7 @@ icon=icon.png
 experimental=False
 deprecated=False
 changelog=
+    3.1.8 - Due to problems with older versions of QGIS the new minimum version is 3.14
     3.1.7 - Added suport for exporting ground overlays to geotiffs.
     3.1.6 - Included altitude addend
     3.1.5 - Allow expressions to be used for gradient and categorized values
