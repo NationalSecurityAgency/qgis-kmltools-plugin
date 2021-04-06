@@ -53,7 +53,7 @@ The ***Processing Toolbox*** version of ***Expand HTML description table*** oper
 Because there is no standard way of including additional information in the KML description entry, it is difficult to come up with a way to expand all cases. Right now this just works with two column HTML tables, ***tag=value***, and ***tag: value*** pairs, but please let us know if there are other description formats that you would like us to tackle.
 
 ### <img src="icons/export.svg" alt="Export KMZ"> ***Export KMZ***
-This provides the ability to export a QGIS point, line, or polygon layer as a Google Earth KMZ file. It can export single, categorized, and graduated QGIS symbology. For others it will default to not exporting the symbology. For points it captures the entire symbol, but for lines and polygons only simple line colors, line widths, and solid polygon fills can be exported due the the limitations of the KML specification. It can export date and time in one or two fields as a time stamp, time begin and time end. It also handles altitude either from QGIS Z geometries or from an attribute field and eventually add a constant quantity.
+This provides the ability to export a QGIS point, line, or polygon layer as a Google Earth KMZ file. It can export single, categorized, and graduated QGIS symbology. For others it will default to not exporting the symbology. For points it captures the entire symbol, but for lines and polygons only simple line colors, line widths, and solid polygon fills can be exported due the limitations of the KML specification. It can export date and time in one or two fields as a time stamp, time begin and time end. It also handles altitude either from QGIS Z geometries or from an attribute field and eventually add a constant quantity.
 
 <div style="text-align:center"><img src="doc/export.jpg" alt="Export KMZ"></div>
 
@@ -71,6 +71,7 @@ The following describes some of the functionality.
 * ***Date/Time stamp field*** - This specifies a field in the attribute table that contains a date and time. This can be a QGIS QDateTime field, QDate field, QString field, int or double field. It attempts to smartly parse any string field. If the field is an int or double then at assumes the value is EPOCH time in seconds. In the advanced parameters, separate date and time fields can be used.
 * ***Date/Time span begin field*** - This selects a field for the date/time span begin field.
 * ***Date/Time span end field*** - This selects a field for the date/time span end field.
+* ***Image path/name field*** - This specifies the complete path to an image which will be included in to KMZ and will be displayed in the Google Earth placemark popup. As an example, if you have a directory of georeferenced images, you can run ***Import geotagged photos*** from the QGIS processing toolbox. This creates a ***Photo*** attribute which can be used for ***Export KMZ***. Be careful that you only use small images for this purpose because all the images in the table will be copied into the KMZ and they will not be downsized.
 
 **Advanced Parameters**
 

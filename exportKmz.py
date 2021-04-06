@@ -1,6 +1,6 @@
 import os
 import math
-from qgis.PyQt.QtCore import QUrl, QTime, QDateTime, QDate, QSize, QPointF
+from qgis.PyQt.QtCore import Qt, QUrl, QTime, QDateTime, QDate, QSize, QPointF
 from qgis.PyQt.QtGui import QIcon
 
 from qgis.core import (
@@ -71,6 +71,8 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
     PrmDateTimeEndField = 'DateTimeEndField'
     PrmDateEndField = 'DateEndField'
     PrmTimeEndField = 'TimeEndField'
+    PrmPhotoField = 'PhotoField'
+    PrmPhotoDir = 'PhotoDir'
     epsg4326 = QgsCoordinateReferenceSystem("EPSG:4326")
     temp_dir = tempfile.gettempdir()
 
@@ -206,6 +208,15 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             )
         )
         self.addParameter(
+            QgsProcessingParameterField(
+                self.PrmPhotoField,
+                'Image path/name field',
+                parentLayerParameterName=self.PrmInputLayer,
+                type=QgsProcessingParameterField.String,
+                optional=True
+            )
+        )
+        self.addParameter(
             QgsProcessingParameterFileDestination(
                 self.PrmOutputKmz,
                 'Output KMZ file',
@@ -318,6 +329,11 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         date_time_end_field = self.parameterAsString(parameters, self.PrmDateTimeEndField, context)
         date_end_field = self.parameterAsString(parameters, self.PrmDateEndField, context)
         time_end_field = self.parameterAsString(parameters, self.PrmTimeEndField, context)
+        if self.PrmPhotoField not in parameters or parameters[self.PrmPhotoField] is None:
+            photo_path_field = None
+        else:
+            photo_path_field = self.parameterAsString(parameters, self.PrmPhotoField, context)
+        self.photos = {}
 
         hasz = QgsWkbTypes.hasZ(wkbtype)
         if alt_interpret == 0:
@@ -441,10 +457,21 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             if name_field:
                 self.exportName(kml_item, feature[name_field])
 
+            if photo_path_field:
+                photo_path = feature[photo_path_field].strip()
+                if os.path.exists(photo_path):
+                    if not (photo_path in self.photos):
+                        local_path = kml.addfile(photo_path)
+                        self.photos[photo_path] = local_path
+                else:
+                    photo_path = None
+            else:
+                photo_path = None
+                    
             if desc_cnt == 1:
-                self.exportDescription(kml_item, feature[desc_fields[0]])
+                self.exportDescription(kml_item, feature[desc_fields[0]], photo_path)
             elif desc_cnt > 1:
-                self.exportFields(kml_item, desc_fields, feature)
+                self.exportFields(kml_item, desc_fields, feature, photo_path)
 
             # Process the first date / time fields
             date_time_str = self.parseDateTimeValues(
@@ -471,7 +498,6 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
 
             if cnt % 100 == 0:
                 feedback.setProgress(int(cnt * total))
-
         if num_features == 0:
             feedback.pushInfo('No features processed')
         else:
@@ -672,22 +698,47 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         for icon in self.png_icons:
             if os.path.exists(icon):
                 os.remove(icon)
-
+    def get_attribute_str(self, attr):
+        if not attr:
+            return( attr )
+        if isinstance(attr, QDateTime):
+            attr = attr.toString(Qt.ISODate)
+        elif isinstance(attr, QDate):
+            attr = attr.toString(Qt.ISODate)
+        elif isinstance(attr, QTime):
+            attr = attr.toString(Qt.ISODate)
+        attr = escape('{}'.format(attr).strip())
+        return(attr)
+            
     def exportName(self, kml_item, fname):
-        name = '{}'.format(fname)
+        name = self.get_attribute_str(fname)
         name = name.strip()
         kml_item.name = name
 
-    def exportDescription(self, kml_item, desc):
-        desc = '{}'.format(desc).strip()
+    def exportDescription(self, kml_item, desc, photo_path):
+        desc = self.get_attribute_str(desc)
+        if photo_path:
+            desc = '<img src="{}" style="max-width:300"/><br/><br/>{}'.format(self.photos[photo_path], desc)
+        else:
+            desc = '{}'.format(desc).strip()
         if desc:
             kml_item.description = desc
 
-    def exportFields(self, kml_item, fields, f):
-        for field in fields:
-            v = escape('{}'.format(f[field]).strip())
-            if v != '':
-                kml_item.extendeddata.newdata(name=field, value=v, displayname=field)
+    def exportFields(self, kml_item, fields, f, photo_path):
+        strs = ['<![CDATA[']
+        if photo_path:
+            strs.append('<img src="{}" style="max-width:300"/><br/><br/>'.format(self.photos[photo_path]))
+        strs.append('<table>')
+        for row, field in enumerate(fields):
+            v = self.get_attribute_str(f[field])
+            kml_item.extendeddata.newdata(name=field, value=v, displayname=field)
+            if row & 1:
+                strs.append('<tr><td>{}</td><td>$[{}]</td></tr>'.format(field, field))
+            else:
+                strs.append('<tr style="background-color:#DDDDFF"><td>{}</td><td>$[{}]</td></tr>'.format(field, field))
+        strs.append('</table>\n]]>')
+        str = '\n'.join(strs)
+        kml_item.description = str
 
     def setAltitudeMode(self, kml_item, f, alt_mode, mode_field):
         try:
