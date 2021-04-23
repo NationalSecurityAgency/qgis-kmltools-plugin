@@ -110,6 +110,7 @@ code {
 </ul>
 <p>KML Tools does not implement the entire KML specification. It focuses on point, line and polygon geometries within the KML. If for some reason you find that it is missing something, let us know and perhaps we can add it.</p>
 <h2>Raster Tools</h2>
+<p>Note that these tools are only available in QGIS 3.14.0 later.</p>
 <h3><img src="icons/gnd_overlay_import.svg" alt="Extract KML/KMZ Ground Overlays">  <strong><em>Extract KML/KMZ Ground Overlays</em></strong></h3>
 <p>This algorithm looks through the KML/KMZ for KML <strong>GroundOverlay</strong> tags and if the associated image is embedded in the KMZ or is on the local file system it will convert it to a GeoTIFF according to the LatLonBox parameters. Note that this algorithm will not follow and extract http(s) linked images. The following shows the KML tags that are extracted. In this case etna.jpg is converted to etna.tif.</p>
 <pre>    &lt;Icon&gt;

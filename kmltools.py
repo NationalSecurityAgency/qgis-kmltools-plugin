@@ -20,7 +20,7 @@
 from qgis.PyQt.QtCore import QUrl
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
-from qgis.core import QgsApplication
+from qgis.core import QgsApplication, Qgis
 import processing
 
 import os
@@ -56,23 +56,25 @@ class KMLTools(object):
         self.htmlDescAction.setCheckable(False)
         self.iface.addToolBarIcon(self.htmlDescAction)
         self.iface.addPluginToVectorMenu("KML Tools", self.htmlDescAction)
-        # Extract KML/KMZ Ground Overlays
-        icon = QIcon(os.path.dirname(__file__) + "/icons/gnd_overlay_import.svg")
-        self.extractGndAction = QAction(icon, "Extract KML/KMZ Ground Overlays", self.iface.mainWindow())
-        self.extractGndAction.triggered.connect(self.extractGroundOverlays)
-        self.extractGndAction.setCheckable(False)
-        self.iface.addPluginToRasterMenu("KML Tools", self.extractGndAction)
+        if Qgis.QGIS_VERSION_INT >= 31400:
+            # Extract KML/KMZ Ground Overlays
+            icon = QIcon(os.path.dirname(__file__) + "/icons/gnd_overlay_import.svg")
+            self.extractGndAction = QAction(icon, "Extract KML/KMZ Ground Overlays", self.iface.mainWindow())
+            self.extractGndAction.triggered.connect(self.extractGroundOverlays)
+            self.extractGndAction.setCheckable(False)
+            self.iface.addPluginToRasterMenu("KML Tools", self.extractGndAction)
 
-        self.createGndAction = QAction(icon, "Create Ground Overlay GeoTIFF Image", self.iface.mainWindow())
-        self.createGndAction.triggered.connect(self.createGroundOverlayGeoTIFF)
-        self.createGndAction.setCheckable(False)
-        self.iface.addPluginToRasterMenu("KML Tools", self.createGndAction)
+            self.createGndAction = QAction(icon, "Create Ground Overlay GeoTIFF Image", self.iface.mainWindow())
+            self.createGndAction.triggered.connect(self.createGroundOverlayGeoTIFF)
+            self.createGndAction.setCheckable(False)
+            self.iface.addPluginToRasterMenu("KML Tools", self.createGndAction)
         # Help
         icon = QIcon(os.path.dirname(__file__) + '/icons/help.svg')
         self.helpAction = QAction(icon, "Help", self.iface.mainWindow())
         self.helpAction.triggered.connect(self.help)
         self.iface.addPluginToVectorMenu('KML Tools', self.helpAction)
-        self.iface.addPluginToRasterMenu('KML Tools', self.helpAction)
+        if Qgis.QGIS_VERSION_INT >= 31400:
+            self.iface.addPluginToRasterMenu('KML Tools', self.helpAction)
 
         # Add the processing provider
         QgsApplication.processingRegistry().addProvider(self.provider)
@@ -82,9 +84,10 @@ class KMLTools(object):
         self.iface.removePluginVectorMenu("KML Tools", self.kmlAction)
         self.iface.removePluginVectorMenu("KML Tools", self.kmlExportAction)
         self.iface.removePluginVectorMenu("KML Tools", self.htmlDescAction)
-        self.iface.removePluginRasterMenu("KML Tools", self.extractGndAction)
-        self.iface.removePluginRasterMenu("KML Tools", self.createGndAction)
-        self.iface.removePluginRasterMenu("KML Tools", self.helpAction)
+        if Qgis.QGIS_VERSION_INT >= 31400:
+            self.iface.removePluginRasterMenu("KML Tools", self.extractGndAction)
+            self.iface.removePluginRasterMenu("KML Tools", self.createGndAction)
+            self.iface.removePluginRasterMenu("KML Tools", self.helpAction)
         self.iface.removePluginVectorMenu("KML Tools", self.helpAction)
         self.iface.removeToolBarIcon(self.kmlAction)
         self.iface.removeToolBarIcon(self.kmlExportAction)

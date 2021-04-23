@@ -27,8 +27,8 @@ import simplekml
 import tempfile
 from .settings import settings
 
-def qcolor2kmlcolor(color):
-    return('{:02x}{:02x}{:02x}{:02x}'.format(color.alpha(), color.blue(), color.green(), color.red()))
+def qcolor2kmlcolor(color, opacity=1):
+    return('{:02x}{:02x}{:02x}{:02x}'.format(int(color.alpha()*opacity), color.blue(), color.green(), color.red()))
 
 
 ALTITUDE_MODES = ['clampToGround', 'relativeToGround', 'absolute']
@@ -549,22 +549,30 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                         self.feedback.pushInfo('An error occured in defining the range object')
                         return
             except Exception:
-                # self.feedback.pushInfo('  Expression failed')
+                '''s = traceback.format_exc()
+                self.feedback.pushInfo(s)'''
                 return
             # Get the symbol related to the specified gradient range
             # For lines and polygons we would use the color and line sizes
             symbol = range.symbol()
+            opacity = symbol.opacity()
             if geomtype == QgsWkbTypes.PointGeometry:
                 sym_size = symbol.size(self.symcontext)
                 color = qcolor2kmlcolor(symbol.color())
             elif geomtype == QgsWkbTypes.LineGeometry:
                 sym_size = symbol.width()
+                if sym_size == 0:
+                    sym_size = 0.5
                 color = qcolor2kmlcolor(symbol.color())
                 key = (sym_size, color)
             else:
                 symbol_layer = symbol.symbolLayer(0)
-                sym_size = symbol_layer.strokeWidth()
-                color = qcolor2kmlcolor(symbol_layer.color())
+                stroke_style = symbol_layer.strokeStyle()
+                if stroke_style == 0:
+                    sym_size = 0
+                else:
+                    sym_size = symbol_layer.strokeWidth()
+                color = qcolor2kmlcolor(symbol_layer.color(), opacity)
             key = (sym_size, color)
             if key in self.cat_styles:
                 # self.feedback.pushInfo('  catindex in cat_styles')
@@ -575,6 +583,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         # self.feedback.pushInfo('initStyles type: {}'.format(symtype))
         if symtype == 1: # Single Symbol
             symbol = self.render.symbol()
+            opacity = symbol.opacity()
             self.simple_style = simplekml.Style()
             if geomtype == QgsWkbTypes.PointGeometry:
                 sym_size = symbol.size(self.symcontext)
@@ -595,21 +604,30 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     self.simple_style.iconstyle.icon.href = GOOGLE_ICONS[self.google_icons[google_icon]]
                     self.simple_style.iconstyle.color = qcolor2kmlcolor(symbol.color())
             elif geomtype == QgsWkbTypes.LineGeometry:
-                self.simple_style.linestyle.color = qcolor2kmlcolor(symbol.color())
-                self.simple_style.linestyle.width = symbol.width() * self.line_width_factor
+                symbol_width = symbol.width()
+                if symbol_width == 0:
+                    symbol_width = 0.5
+                self.simple_style.linestyle.color = qcolor2kmlcolor(symbol.color(), opacity)
+                self.simple_style.linestyle.width = symbol_width * self.line_width_factor
                 if name_field:
                     self.simple_style.linestyle.gxlabelvisibility = True
             else:
                 symbol_layer = symbol.symbolLayer(0)
-                self.simple_style.linestyle.color = qcolor2kmlcolor(symbol_layer.strokeColor())
-                self.simple_style.linestyle.width = symbol_layer.strokeWidth() * self.line_width_factor
-                self.simple_style.polystyle.color = qcolor2kmlcolor(symbol_layer.color())
+                stroke_style = symbol_layer.strokeStyle()
+                if stroke_style == 0:
+                    stroke_width = 0
+                else:
+                    stroke_width = symbol_layer.strokeWidth()
+                self.simple_style.linestyle.color = qcolor2kmlcolor(symbol_layer.strokeColor(), opacity)
+                self.simple_style.linestyle.width = stroke_width * self.line_width_factor
+                self.simple_style.polystyle.color = qcolor2kmlcolor(symbol_layer.color(), opacity)
                 if name_field:
                     self.simple_style.iconstyle.scale = 0
         elif symtype == 2: # Categorized Symbols
             for idx, category in enumerate(self.render.categories()):
                 cat_style = simplekml.Style()
                 symbol = category.symbol()
+                opacity = symbol.opacity()
                 # self.feedback.pushInfo(' categories idx: {}'.format(idx))
                 if geomtype == QgsWkbTypes.PointGeometry:
                     # self.feedback.pushInfo('  PointGeometry')
@@ -634,16 +652,24 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                         cat_style.iconstyle.color = qcolor2kmlcolor(symbol.color())
                 elif geomtype == QgsWkbTypes.LineGeometry:
                     # self.feedback.pushInfo('  LineGeometry')
-                    cat_style.linestyle.color = qcolor2kmlcolor(symbol.color())
-                    cat_style.linestyle.width = symbol.width() * self.line_width_factor
+                    symbol_width = symbol.width()
+                    if symbol_width == 0:
+                        symbol_width = 0.5
+                    cat_style.linestyle.color = qcolor2kmlcolor(symbol.color(), opacity)
+                    cat_style.linestyle.width = symbol_width * self.line_width_factor
                     if name_field:
                         cat_style.linestyle.gxlabelvisibility = True
                 else:
                     # self.feedback.pushInfo('  PolygonGeometry')
                     symbol_layer = symbol.symbolLayer(0)
-                    cat_style.linestyle.color = qcolor2kmlcolor(symbol_layer.strokeColor())
-                    cat_style.linestyle.width = symbol_layer.strokeWidth() * self.line_width_factor
-                    cat_style.polystyle.color = qcolor2kmlcolor(symbol_layer.color())
+                    stroke_style = symbol_layer.strokeStyle()
+                    if stroke_style == 0:
+                        stroke_width = 0
+                    else:
+                        stroke_width = symbol_layer.strokeWidth()
+                    cat_style.linestyle.color = qcolor2kmlcolor(symbol_layer.strokeColor(), opacity)
+                    cat_style.linestyle.width = stroke_width * self.line_width_factor
+                    cat_style.polystyle.color = qcolor2kmlcolor(symbol_layer.color(), opacity)
                     if name_field:
                         cat_style.iconstyle.scale = 0
                 self.cat_styles[idx] = cat_style
@@ -651,11 +677,12 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             for idx, range in enumerate(self.render.ranges()):
                 cat_style = simplekml.Style()
                 symbol = range.symbol()
+                opacity = symbol.opacity()
                 # self.feedback.pushInfo(' categories idx: {}'.format(idx))
                 if geomtype == QgsWkbTypes.PointGeometry:
                     # self.feedback.pushInfo('  PointGeometry')
                     sym_size = symbol.size(self.symcontext)
-                    color = qcolor2kmlcolor(symbol.color())
+                    color = qcolor2kmlcolor(symbol.color(), opacity)
                     # self.feedback.pushInfo('sym_size: {}'.format(sym_size))
                     if google_icon is None:
                         bounds = symbol.bounds(QPointF(0, 0), self.symcontext)
@@ -676,23 +703,29 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                         cat_style.iconstyle.color = color
                 elif geomtype == QgsWkbTypes.LineGeometry:
                     # self.feedback.pushInfo('  LineGeometry')
-                    color = qcolor2kmlcolor(symbol.color())
+                    color = qcolor2kmlcolor(symbol.color(), opacity)
                     cat_style.linestyle.color = color
-                    sym_size = symbol.width()
-                    cat_style.linestyle.width = sym_size * self.line_width_factor
+                    symbol_width = symbol.width()
+                    if symbol_width == 0:
+                        symbol_width = 0.5
+                    cat_style.linestyle.width = symbol_width * self.line_width_factor
                     if name_field:
                         cat_style.linestyle.gxlabelvisibility = True
                 else:
                     # self.feedback.pushInfo('  PolygonGeometry')
                     symbol_layer = symbol.symbolLayer(0)
-                    sym_size = symbol_layer.strokeWidth()
-                    color = qcolor2kmlcolor(symbol_layer.color())
-                    cat_style.linestyle.color = qcolor2kmlcolor(symbol_layer.strokeColor())
-                    cat_style.linestyle.width = sym_size * self.line_width_factor
+                    stroke_style = symbol_layer.strokeStyle()
+                    if stroke_style == 0:
+                        stroke_width = 0
+                    else:
+                        stroke_width = symbol_layer.strokeWidth()
+                    color = qcolor2kmlcolor(symbol_layer.color(), opacity)
+                    cat_style.linestyle.color = qcolor2kmlcolor(symbol_layer.strokeColor(), opacity)
+                    cat_style.linestyle.width = stroke_width * self.line_width_factor
                     cat_style.polystyle.color = color
                     if name_field:
                         cat_style.iconstyle.scale = 0
-                self.cat_styles[(sym_size,color)] = cat_style
+                self.cat_styles[(stroke_width,color)] = cat_style
 
     def cleanup(self):
         for icon in self.png_icons:

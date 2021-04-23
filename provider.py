@@ -1,11 +1,12 @@
 import os
-from qgis.core import QgsProcessingProvider
+from qgis.core import QgsProcessingProvider, Qgis
 from qgis.PyQt.QtGui import QIcon
 from .htmlExpansionAlgorithm import HTMLExpansionAlgorithm
 from .importKml import ImportKmlAlgorithm
 from .exportKmz import ExportKmzAlgorithm
-from .convertGroundOverlays import ConvertGroundOverlayAlgorithm
-from .createGroundOverlayGeoTiff import CreateGroundOverlayGeoTiffAlgorithm
+if Qgis.QGIS_VERSION_INT >= 31400:
+    from .convertGroundOverlays import ConvertGroundOverlayAlgorithm
+    from .createGroundOverlayGeoTiff import CreateGroundOverlayGeoTiffAlgorithm
 
 class KmlToolsProvider(QgsProcessingProvider):
 
@@ -16,8 +17,9 @@ class KmlToolsProvider(QgsProcessingProvider):
         self.addAlgorithm(HTMLExpansionAlgorithm())
         self.addAlgorithm(ImportKmlAlgorithm())
         self.addAlgorithm(ExportKmzAlgorithm())
-        self.addAlgorithm(ConvertGroundOverlayAlgorithm())
-        self.addAlgorithm(CreateGroundOverlayGeoTiffAlgorithm())
+        if Qgis.QGIS_VERSION_INT >= 31400:
+            self.addAlgorithm(ConvertGroundOverlayAlgorithm())
+            self.addAlgorithm(CreateGroundOverlayGeoTiffAlgorithm())
         
     def icon(self):
         return QIcon(os.path.dirname(__file__) + '/icons/import.svg')
