@@ -429,9 +429,12 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                         kmlpart.coords = [(pt.x(), pt.y(), altitude + altitude_addend) for pt in part]
             elif geomtype == QgsWkbTypes.PolygonGeometry:  # POLYGONS
                 if name_field:
-                    centroid = geom.centroid().asPoint()
-                    name = '{}'.format(feature[name_field])
-                    labelpart = kmlgeom.newpoint(coords=[(centroid.x(), centroid.y())], name=name)
+                    try:
+                        centroid = geom.centroid().asPoint()
+                        name = '{}'.format(feature[name_field])
+                        labelpart = kmlgeom.newpoint(coords=[(centroid.x(), centroid.y())], name=name)
+                    except Exception:
+                        pass
 
                 for part in geom.parts():
                     kmlpart = kmlgeom.newpolygon()
