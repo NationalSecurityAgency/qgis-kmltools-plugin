@@ -2,7 +2,7 @@
 name=KML Tools
 qgisMinimumVersion=3.10.1
 description=Fast KML/KMZ importer, exporter, with description field expansion and ground overlay to GeoTIFF conversions.
-version=3.1.11
+version=3.1.12
 author=C Hamilton
 email=adenaculture@gmail.com
 about=
@@ -16,7 +16,8 @@ icon=icon.png
 experimental=False
 deprecated=False
 changelog=
-    3.11.11 - Gracefully handle Null geometries
+    3.1.12 - Bug fix #12
+    3.1.11 - Gracefully handle Null geometries
     3.1.10 - Various bug fixes to opacity and line widths
     3.1.9 - Export KMZ can now include a photo in the Google Earth placemark popup.
     3.1.8 - Due to problems with older versions of QGIS the new minimum version is 3.14

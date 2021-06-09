@@ -736,7 +736,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 os.remove(icon)
     def get_attribute_str(self, attr):
         if not attr:
-            return( attr )
+            return( '' )
         if isinstance(attr, QDateTime):
             attr = attr.toString(Qt.ISODate)
         elif isinstance(attr, QDate):
@@ -747,16 +747,14 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         return(attr)
             
     def exportName(self, kml_item, fname):
-        name = self.get_attribute_str(fname)
-        name = name.strip()
-        kml_item.name = name
+        kml_item.name = self.get_attribute_str(fname)
 
     def exportDescription(self, kml_item, desc, photo_path):
         desc = self.get_attribute_str(desc)
         if photo_path:
             desc = '<img src="{}" style="max-width:300"/><br/><br/>{}'.format(self.photos[photo_path], desc)
         else:
-            desc = '{}'.format(desc).strip()
+            desc = '{}'.format(desc)
         if desc:
             kml_item.description = desc
 
