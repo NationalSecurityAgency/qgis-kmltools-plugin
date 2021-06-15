@@ -76,10 +76,27 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
         filename = self.parameterAsFile(parameters, self.PrmInput, context)
         f, extension = os.path.splitext(filename)
         extension = extension.lower()
+        kmz_doc_file = 'doc.kml'
         try:
             if extension == '.kmz':
                 kmz = ZipFile(filename, 'r')
-                kml = kmz.open('doc.kml', 'r')
+                try:
+                    kml = kmz.open(kmz_doc_file, 'r')
+                except Exception:
+                    # there was not a doc.kml file, lets see if there another kml file
+                    files = kmz.namelist()
+                    kmz_doc_file = None
+                    for f in files:
+                        if f.endswith('.kml'):
+                            kmz_doc_file = f
+                            break
+                    if kmz_doc_file:
+                        kml = kmz.open(kmz_doc_file, 'r')
+                    else:
+                        msg = "Couldn't find kml document in kmz file"
+                        feedback.reportError(msg)
+                        raise QgsProcessingException(msg)
+                       
             elif extension == '.kml':
                 kml = open(filename, encoding="utf-8", errors="backslashreplace")
             else:
@@ -116,7 +133,7 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
             kml.close()
         if extension == '.kmz':
             kmz = ZipFile(filename, 'r')
-            kml = kmz.open('doc.kml', 'r')
+            kml = kmz.open(kmz_doc_file, 'r')
         else:
             kml = open(filename, encoding="utf-8", errors="backslashreplace")
 
