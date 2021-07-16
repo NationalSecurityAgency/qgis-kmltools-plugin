@@ -2,7 +2,7 @@
 name=KML Tools
 qgisMinimumVersion=3.10.1
 description=Fast KML/KMZ importer, exporter, with description field expansion and ground overlay to GeoTIFF conversions.
-version=3.1.13
+version=3.1.14
 author=C Hamilton
 email=adenaculture@gmail.com
 about=
@@ -16,6 +16,7 @@ icon=icon.png
 experimental=False
 deprecated=False
 changelog=
+    3.1.14 - Add imformational message about possible ground overlays.
     3.1.13 - Support kmz files that use a kml name other than doc.kml
     3.1.12 - Bug fix #12
     3.1.11 - Gracefully handle Null geometries

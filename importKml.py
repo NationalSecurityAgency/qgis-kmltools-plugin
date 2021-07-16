@@ -165,6 +165,11 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
             kmz.close()
         else:
             kml.close()
+        
+        if handler.hasGoundOverlay:
+            feedback.pushInfo(tr('NOTICE: This file may contain GroundOverlay images.'))
+            feedback.pushInfo(tr('Run "Raster->KML Tools->Extract KML/KMZ Ground Overlasys" to extract them if embedded.'))
+            feedback.pushInfo('')
 
         feedback.pushInfo('{} points extracted'.format(self.cntPt))
         feedback.pushInfo('{} lines extracted'.format(self.cntLine))
@@ -281,6 +286,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         self.extDataMap = extDataMap
         self.feedback = feedback
         self.extDataSize = len(extDataMap)
+        self.hasGoundOverlay = False
 
         self.inPlacemark = False
         self.resetSettings()
@@ -424,6 +430,9 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
                 self.inDataValue = True
             elif name == "ExtendedData":
                 self.inExtendedData = True
+
+        elif name == 'GroundOverlay':
+            self.hasGoundOverlay = True
 
     def characters(self, data):
         if self.inName:  # on text within tag
