@@ -49,7 +49,7 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFile(
                 self.PrmInput,
-                tr('Import KML/KMZ file'))
+                tr('Import KML/KMZ file (*.kml, *.txt, or *.kmz)'))
         )
         self.addParameter(
             QgsProcessingParameterFeatureSink(
@@ -94,18 +94,16 @@ class ImportKmlAlgorithm(QgsProcessingAlgorithm):
                         kml = kmz.open(kmz_doc_file, 'r')
                     else:
                         msg = "Couldn't find kml document in kmz file"
-                        feedback.reportError(msg)
                         raise QgsProcessingException(msg)
                        
-            elif extension == '.kml':
+            elif extension == '.kml' or extension == '.txt':
                 kml = open(filename, encoding="utf-8", errors="backslashreplace")
             else:
-                msg = "Invalid extension: Should be kml or kmz"
+                msg = "Invalid extension: Should be *.kml, *.txt, or *.kmz."
                 feedback.reportError(msg)
                 raise QgsProcessingException(msg)
         except Exception:
-            msg = "Failed to open file"
-            feedback.reportError(msg)
+            msg = "Failed to open file."
             raise QgsProcessingException(msg)
 
         skipPt = True if self.PrmPointOutputLayer not in parameters or parameters[self.PrmPointOutputLayer] is None else False

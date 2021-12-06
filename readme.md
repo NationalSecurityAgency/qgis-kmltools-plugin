@@ -10,7 +10,7 @@ The native QGIS importer creates separate layers for each folder within a KML/KM
 ## Vector Tools
 
 ### <img src="icons/import.svg" alt="Import KML/KMZ"> ***Import KML/KMZ***
-This functions as the name implies. It's interface is simple. Click on the ... button on the right of ***Import KML/KMZ file*** to select your file. Choose whether you want to include points, lines or polygons from the KML as QGIS output layers. If the KML file does not contain one of these geometry types, then the associated layer will not be created anyway.
+This functions as the name implies. It's interface is simple. Click on the ... button on the right of ***Import KML/KMZ file*** to select your file. Note that the file name extension must be *.kml, *.txt, or *.kmz. Choose whether you want to include points, lines or polygons from the KML as QGIS output layers. If the KML file does not contain one of these geometry types, then the associated layer will not be created anyway.
 
 <div style="text-align:center"><img src="doc/import.jpg" alt="Import KML/KMZ"></div>
 
