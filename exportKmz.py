@@ -4,7 +4,7 @@ from qgis.PyQt.QtCore import Qt, QUrl, QTime, QDateTime, QDate, QSize, QPointF
 from qgis.PyQt.QtGui import QIcon
 
 from qgis.core import (
-    QgsCoordinateTransform, QgsCoordinateReferenceSystem,
+    QgsCoordinateTransform, QgsCoordinateReferenceSystem, QgsCompoundCurve,
     QgsProject, QgsRenderContext, QgsWkbTypes, Qgis, QgsExpression, QgsExpressionContext, QgsExpressionContextUtils)
 
 from qgis.core import (
@@ -393,6 +393,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             if feedback.isCanceled():
                 break
             num_features += 1
+            # feedback.pushInfo('Feature {} - {}'.format(num_features, type(feature)))
             if altitude_field:
                 try:
                     altitude = float(feature[altitude_field])
@@ -443,6 +444,10 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                         kml_item = kmlpart
                     num_interior_rings = part.numInteriorRings()
                     ext_ring = part.exteriorRing()
+                    if isinstance(ext_ring, QgsCompoundCurve):
+                        ext_ring = ext_ring.curveToLine()
+                    # feedback.pushInfo('ext_ring type {}'.format(type(ext_ring)))
+                    
                     if hasz:
                         kmlpart.outerboundaryis = [(pt.x(), pt.y(), pt.z() + altitude_addend) for pt in ext_ring]
                     else:
@@ -450,10 +455,13 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     if num_interior_rings:
                         ib = []
                         for i in range(num_interior_rings):
+                            ring = part.interiorRing(i)
+                            if isinstance(ring, QgsCompoundCurve):
+                                ring = ring.curveToLine()
                             if hasz:
-                                ib.append([(pt.x(), pt.y(), pt.z() + altitude_addend) for pt in part.interiorRing(i)])
+                                ib.append([(pt.x(), pt.y(), pt.z() + altitude_addend) for pt in ring])
                             else:
-                                ib.append([(pt.x(), pt.y(), altitude + altitude_addend) for pt in part.interiorRing(i)])
+                                ib.append([(pt.x(), pt.y(), altitude + altitude_addend) for pt in ring])
                         kmlpart.innerboundaryis = ib
 
             self.exportStyle(kml_item, feature, export_style, geomtype)
