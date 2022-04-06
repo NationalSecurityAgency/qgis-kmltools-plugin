@@ -400,6 +400,9 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 except Exception:
                     altitude = 0
             geom = feature.geometry()
+            # Check to see if there is a Null geometery and skip this feature.
+            if geom.isNull():
+                continue
             if src_crs != self.epsg4326:
                 geom.transform(geomTo4326)
             if geom.isMultipart() or (name_field and geomtype == QgsWkbTypes.PolygonGeometry):
