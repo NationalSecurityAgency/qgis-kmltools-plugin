@@ -17,7 +17,7 @@ from qgis.core import (
     QgsProcessingParameterDefinition,
     QgsProcessingParameterFileDestination,
     QgsProcessingParameterField,
-    QgsProcessingParameterFeatureSource)
+    QgsProcessingParameterVectorLayer)
 
 import dateutil.parser
 import datetime
@@ -51,6 +51,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
     Algorithm to import KML and KMZ files.
     """
     PrmInputLayer = 'InputLayer'
+    PrmSelectedFeaturesOnly = 'SelectedFeaturesOnly'
     PrmOutputKmz = 'OutputKmz'
     PrmNameField = 'NameField'
     PrmDescriptionField = 'DescriptionField'
@@ -78,10 +79,17 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
 
     def initAlgorithm(self, config):
         self.addParameter(
-            QgsProcessingParameterFeatureSource(
+            QgsProcessingParameterVectorLayer(
                 self.PrmInputLayer,
                 'Input layer',
                 [QgsProcessing.TypeVector])
+        )
+        self.addParameter(
+            QgsProcessingParameterBoolean (
+                self.PrmSelectedFeaturesOnly,
+                'Selected features only',
+                False,
+                optional=False)
         )
         self.addParameter(
             QgsProcessingParameterField(
@@ -292,14 +300,16 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         self.context = context
         self.feedback = feedback
         filename = self.parameterAsFileOutput(parameters, self.PrmOutputKmz, context)
-        source = self.parameterAsSource(parameters, self.PrmInputLayer, context)
+        layer = self.parameterAsLayer(parameters, self.PrmInputLayer, context)
+        selected_features_only = self.parameterAsInt(parameters, self.PrmSelectedFeaturesOnly, context)
 
         # Before we go further check to make sure we have a valid vector layer
-        wkbtype = source.wkbType()
+        if not layer:
+            raise QgsProcessingException('No valid vector layer selected.')
+        wkbtype = layer.wkbType()
         geomtype = QgsWkbTypes.geometryType(wkbtype)
         if geomtype == QgsWkbTypes.UnknownGeometry or geomtype == QgsWkbTypes.NullGeometry:
             raise QgsProcessingException('Algorithm input is not a valid point, line, or polygon layer.')
-        layer = self.parameterAsLayer(parameters, self.PrmInputLayer, context)
         if self.PrmNameField not in parameters or parameters[self.PrmNameField] is None:
             name_field = None
         else:
@@ -343,7 +353,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             altitude_field = None
         elif alt_interpret == 2:
             hasz = False
-        src_crs = source.sourceCrs()
+        src_crs = layer.crs()
         if src_crs != self.epsg4326:
             geomTo4326 = QgsCoordinateTransform(src_crs, self.epsg4326, QgsProject.instance())
 
@@ -352,19 +362,14 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         self.cat_styles = {}
         kml = simplekml.Kml()
         kml.resetidcounter()
-        if layer:
-            try:
-                self.render = layer.renderer()
-                self.exp_context = QgsExpressionContext()
-                self.exp_context.appendScopes(QgsExpressionContextUtils.globalProjectLayerScopes(layer))
-            except Exception:
-                if export_style:
-                    export_style = 0
-                    feedback.reportError('Layer style cannot be determined. Processing will continue without symbol style export.')
-        else:
+        try:
+            self.render = layer.renderer()
+            self.exp_context = QgsExpressionContext()
+            self.exp_context.appendScopes(QgsExpressionContextUtils.globalProjectLayerScopes(layer))
+        except Exception:
             if export_style:
-                feedback.reportError('There appears to be a valid source, but not a valid layer style. Processing will continue without symbol style export.')
                 export_style = 0
+                feedback.reportError('Layer style cannot be determined. Processing will continue without symbol style export.')
         if export_style:
             render_type = self.render.type()
             if render_type == 'singleSymbol':
@@ -383,28 +388,35 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             if export_style:
                 self.initStyles(export_style, google_icon, name_field, geomtype, kml)
 
-        folder = kml.newfolder(name=source.sourceName())
+        folder = kml.newfolder(name=layer.sourceName())
         altitude = 0
-        featureCount = source.featureCount()
+        if selected_features_only:
+            iterator = layer.getSelectedFeatures()
+            featureCount = layer.selectedFeatureCount()
+        else:
+            featureCount = layer.featureCount()
+            iterator = layer.getFeatures()
         total = 100.0 / featureCount if featureCount else 0
         num_features = 0
-        iterator = source.getFeatures()
+        
         for cnt, feature in enumerate(iterator):
             if feedback.isCanceled():
                 break
             num_features += 1
             # feedback.pushInfo('Feature {} - {}'.format(num_features, type(feature)))
-            if altitude_field:
-                try:
-                    altitude = float(feature[altitude_field])
-                except Exception:
-                    altitude = 0
             geom = feature.geometry()
             # Check to see if there is a Null geometery and skip this feature.
             if geom.isNull():
                 continue
             if src_crs != self.epsg4326:
                 geom.transform(geomTo4326)
+
+            if altitude_field:
+                try:
+                    altitude = float(feature[altitude_field])
+                except Exception:
+                    altitude = 0
+
             if geom.isMultipart() or (name_field and geomtype == QgsWkbTypes.PolygonGeometry):
                 kmlgeom = folder.newmultigeometry()
                 kml_item = kmlgeom
