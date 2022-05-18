@@ -360,6 +360,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         self.symcontext = QgsRenderContext.fromMapSettings(settings.canvas.mapSettings())
         self.png_icons = []
         self.cat_styles = {}
+        self.default_cat_index = -1
         kml = simplekml.Kml()
         kml.resetidcounter()
         try:
@@ -376,7 +377,9 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 export_style = 1
             elif render_type == 'categorizedSymbol':
                 style_field = self.render.classAttribute()
-                self.field_exp = QgsExpression(style_field)
+                # feedback.pushInfo('style_field: {}'.format(style_field))
+                self.field_exp = QgsExpression('"{}"'.format(style_field))
+                # feedback.pushInfo('field_exp: {}'.format(self.field_exp))
                 export_style = 2
             elif render_type == 'graduatedSymbol':
                 style_field = self.render.classAttribute()
@@ -434,7 +437,9 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     else:
                         kmlpart.coords = [(pt.x(), pt.y(), altitude + altitude_addend)]
             elif geomtype == QgsWkbTypes.LineGeometry:  # LINES
+                # feedback.pushInfo('geomtype {}'.format(geomtype))
                 for part in geom.parts():
+                    # feedback.pushInfo('part type {}'.format(type(part)))
                     kmlpart = kmlgeom.newlinestring()
                     self.setAltitudeMode(kmlpart, feature, default_alt_mode, alt_mode_field)
                     if kml_item is None:
@@ -534,19 +539,27 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         return({})
 
     def exportStyle(self, kml_item, feature, export_style, geomtype):
+        # self.feedback.pushInfo(' ')
         # self.feedback.pushInfo('exportStyle')
         if export_style == 1:
             kml_item.style = self.simple_style
+            # self.feedback.pushInfo('simple_style: {}'.format(self.simple_style))
         elif export_style == 2:
             # Determine the category expression value
             self.exp_context.setFeature(feature)
             try:
                 value = self.field_exp.evaluate(self.exp_context)
+                # self.feedback.pushInfo('value: {}'.format(value))
                 # Which category does feature value fall in
                 catindex = self.render.categoryIndexForValue(value)
+                # self.feedback.pushInfo('catindex: {}'.format(catindex))
             except Exception:
+                # self.feedback.pushInfo('in excption')
                 return
-            # If it is outside the category ranges assign it to the 0 index
+            # If the evaluation returns -1 and there is a default category then use it.
+            if catindex == -1 and self.default_cat_index != -1:
+                catindex = self.default_cat_index
+            # If it is outside the category ranges assign it to the last index
             if catindex not in self.cat_styles:
                 catindex = 0
             if catindex in self.cat_styles:
@@ -556,6 +569,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             self.exp_context.setFeature(feature)
             try:
                 value = self.field_exp.evaluate(self.exp_context)
+                # self.feedback.pushInfo('value: {}'.format(value))
                 # Which range of the gradient does this value fall in
                 range = self.render.rangeForValue(value)
                 if range is None:
@@ -575,6 +589,9 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                         self.feedback.pushInfo('An error occured in defining the range object')
                         return
             except Exception:
+                # These can be invalid exceptions. If the above rangeForValue is passed an invalid
+                # parameter this will be called. That value will be skipped which in QGIS it won'table
+                # be displayed either.
                 '''s = traceback.format_exc()
                 self.feedback.pushInfo(s)'''
                 return
@@ -606,7 +623,9 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 # self.feedback.pushInfo('  style {}'.format(kml_item.style))
 
     def initStyles(self, symtype, google_icon, name_field, geomtype, kml):
-        # self.feedback.pushInfo('initStyles type: {}'.format(symtype))
+        '''self.feedback.pushInfo(' ')
+        self.feedback.pushInfo('initStyles type: {}'.format(symtype))
+        self.feedback.pushInfo('name_field: {}'.format(name_field))'''
         if symtype == 1: # Single Symbol
             symbol = self.render.symbol()
             opacity = symbol.opacity()
@@ -631,9 +650,11 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     self.simple_style.iconstyle.color = qcolor2kmlcolor(symbol.color())
             elif geomtype == QgsWkbTypes.LineGeometry:
                 symbol_width = symbol.width()
+                # self.feedback.pushInfo('symbol_width: {}'.format(symbol_width))
                 if symbol_width == 0:
                     symbol_width = 0.5
                 self.simple_style.linestyle.color = qcolor2kmlcolor(symbol.color(), opacity)
+                # self.feedback.pushInfo('linestyle.color: {}'.format(self.simple_style.linestyle.color))
                 self.simple_style.linestyle.width = symbol_width * self.line_width_factor
                 if name_field:
                     self.simple_style.linestyle.gxlabelvisibility = True
@@ -651,10 +672,19 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     self.simple_style.iconstyle.scale = 0
         elif symtype == 2: # Categorized Symbols
             for idx, category in enumerate(self.render.categories()):
+                '''self.feedback.pushInfo('category dump: {}'.format(category.dump()))
+                self.feedback.pushInfo('category value: {}'.format(category.value()))
+                self.feedback.pushInfo('category renderState: {}'.format(category.renderState()))
+                self.feedback.pushInfo('category label: {}'.format(category.label()))'''
+                if not category.value():
+                    self.default_cat_index = idx
                 cat_style = simplekml.Style()
+                # self.feedback.pushInfo('cat_style: {}'.format(cat_style))
                 symbol = category.symbol()
+                # self.feedback.pushInfo('symbol dump: {}'.format(symbol.dump()))
                 opacity = symbol.opacity()
-                # self.feedback.pushInfo(' categories idx: {}'.format(idx))
+                # self.feedback.pushInfo('symbol opacity: {}'.format(opacity))
+                # self.feedback.pushInfo('categories idx: {}'.format(idx))
                 if geomtype == QgsWkbTypes.PointGeometry:
                     # self.feedback.pushInfo('  PointGeometry')
                     sym_size = symbol.size(self.symcontext)
@@ -679,6 +709,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 elif geomtype == QgsWkbTypes.LineGeometry:
                     # self.feedback.pushInfo('  LineGeometry')
                     symbol_width = symbol.width()
+                    # self.feedback.pushInfo('symbol width: {}'.format(symbol.width()))
                     if symbol_width == 0:
                         symbol_width = 0.5
                     cat_style.linestyle.color = qcolor2kmlcolor(symbol.color(), opacity)
@@ -688,7 +719,9 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 else:
                     # self.feedback.pushInfo('  PolygonGeometry')
                     symbol_layer = symbol.symbolLayer(0)
+                    # self.feedback.pushInfo('  symbol_layer: {}'.format(symbol_layer))
                     stroke_style = symbol_layer.strokeStyle()
+                    # self.feedback.pushInfo('  stroke_style: {}'.format(stroke_style))
                     if stroke_style == 0:
                         stroke_width = 0
                     else:
@@ -709,7 +742,6 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     # self.feedback.pushInfo('  PointGeometry')
                     sym_size = symbol.size(self.symcontext)
                     color = qcolor2kmlcolor(symbol.color(), opacity)
-                    # self.feedback.pushInfo('sym_size: {}'.format(sym_size))
                     if google_icon is None:
                         bounds = symbol.bounds(QPointF(0, 0), self.symcontext)
                         size = bounds.width()
@@ -731,10 +763,10 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     # self.feedback.pushInfo('  LineGeometry')
                     color = qcolor2kmlcolor(symbol.color(), opacity)
                     cat_style.linestyle.color = color
-                    symbol_width = symbol.width()
-                    if symbol_width == 0:
-                        symbol_width = 0.5
-                    cat_style.linestyle.width = symbol_width * self.line_width_factor
+                    sym_size = symbol.width()
+                    if sym_size == 0:
+                        sym_size = 0.5
+                    cat_style.linestyle.width = sym_size * self.line_width_factor
                     if name_field:
                         cat_style.linestyle.gxlabelvisibility = True
                 else:
@@ -742,16 +774,18 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     symbol_layer = symbol.symbolLayer(0)
                     stroke_style = symbol_layer.strokeStyle()
                     if stroke_style == 0:
-                        stroke_width = 0
+                        sym_size = 0
                     else:
-                        stroke_width = symbol_layer.strokeWidth()
+                        sym_size = symbol_layer.strokeWidth()
                     color = qcolor2kmlcolor(symbol_layer.color(), opacity)
                     cat_style.linestyle.color = qcolor2kmlcolor(symbol_layer.strokeColor(), opacity)
-                    cat_style.linestyle.width = stroke_width * self.line_width_factor
+                    cat_style.linestyle.width = sym_size * self.line_width_factor
                     cat_style.polystyle.color = color
                     if name_field:
                         cat_style.iconstyle.scale = 0
-                self.cat_styles[(stroke_width,color)] = cat_style
+                '''self.feedback.pushInfo('sym_size: {}'.format(sym_size))
+                self.feedback.pushInfo('color: {}'.format(color))'''
+                self.cat_styles[(sym_size, color)] = cat_style
 
     def cleanup(self):
         for icon in self.png_icons:

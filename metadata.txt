@@ -2,7 +2,7 @@
 name=KML Tools
 qgisMinimumVersion=3.10.1
 description=Fast KML/KMZ importer, exporter, with description field expansion and ground overlay to GeoTIFF conversions.
-version=3.1.18
+version=3.1.19
 author=C Hamilton
 email=adenaculture@gmail.com
 about=
@@ -16,6 +16,7 @@ icon=icon.png
 experimental=False
 deprecated=False
 changelog=
+    3.1.19 - Bug fixes in gradient and categorized styles
     3.1.18 - Changed input to QgsProcessingParameterVectorLayer for better styling
     3.1.17 - Check and skip features that have no geometry.
     3.1.16 - Add support for curved polygons
