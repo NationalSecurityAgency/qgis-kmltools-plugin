@@ -56,18 +56,21 @@ code {
         &lt;tr&gt;&lt;td&gt;State&lt;/td&gt;&lt;td&gt;Utah&lt;/td&gt;&lt;/tr&gt;
     &lt;/table&gt;
 </code></pre>
+
 <ul>
 <li><strong><em>Expand from "tag = value" pairs</em></strong> - If the KML has a description entry that contains "tag = value" entries separated by new paragraphs, line breaks, or entries in a single table column, then this option will parse these fields and add them to a new attribute table field. This is an example of data that it expands.</li>
 </ul>
 <pre><code>    &lt;b&gt;City&lt;b/&gt; = Provo&lt;br/&gt;
     &lt;b&gt;State&lt;b/&gt; = Utah&lt;br/&gt;
 </code></pre>
+
 <ul>
 <li><strong><em>Expand from "tag: value" pairs</em></strong> - If the KML has a description entry that contains "tag: value" entries separated by new paragraphs, line breaks, or entries in a single table column, then this option will parse these fields and add them to a new attribute table field. This is an example of data that it expands.</li>
 </ul>
 <pre><code>    &lt;b&gt;City:&lt;b/&gt; Provo&lt;br/&gt;
     &lt;b&gt;State:&lt;b/&gt; Utah&lt;br/&gt;
 </code></pre>
+
 <p>This can either be run from the menu, tool bar, or <em>Processing Toolbox</em>; however, running it from the menu or tool bar provides user interaction during the conversion to select which fields they want to expand. During expansion some of the expansion names may already exist in the table. If that is the case then an '_' followed by a number is appended to the end.</p>
 <div style="text-align:center"><img src="doc/html.jpg" alt="HTML Expander"></div>
 

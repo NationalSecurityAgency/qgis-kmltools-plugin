@@ -307,6 +307,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         if not layer:
             raise QgsProcessingException('No valid vector layer selected.')
         wkbtype = layer.wkbType()
+        self.layer_opacity = layer.opacity()
         geomtype = QgsWkbTypes.geometryType(wkbtype)
         if geomtype == QgsWkbTypes.UnknownGeometry or geomtype == QgsWkbTypes.NullGeometry:
             raise QgsProcessingException('Algorithm input is not a valid point, line, or polygon layer.')
@@ -390,7 +391,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 export_style = 0
             if export_style:
                 self.initStyles(export_style, google_icon, name_field, geomtype, kml)
-
+        
         folder = kml.newfolder(name=layer.sourceName())
         altitude = 0
         if selected_features_only:
@@ -598,7 +599,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             # Get the symbol related to the specified gradient range
             # For lines and polygons we would use the color and line sizes
             symbol = range.symbol()
-            opacity = symbol.opacity()
+            opacity = symbol.opacity() * self.layer_opacity
             if geomtype == QgsWkbTypes.PointGeometry:
                 sym_size = symbol.size(self.symcontext)
                 color = qcolor2kmlcolor(symbol.color())
@@ -628,7 +629,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         self.feedback.pushInfo('name_field: {}'.format(name_field))'''
         if symtype == 1: # Single Symbol
             symbol = self.render.symbol()
-            opacity = symbol.opacity()
+            opacity = symbol.opacity() * self.layer_opacity
             self.simple_style = simplekml.Style()
             if geomtype == QgsWkbTypes.PointGeometry:
                 sym_size = symbol.size(self.symcontext)
@@ -644,6 +645,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     kml.addfile(path)
                     self.simple_style.iconstyle.scale = sym_size / 15
                     self.simple_style.iconstyle.icon.href = 'files/icon.png'
+                    self.simple_style.iconstyle.color = '{:02x}ffffff'.format(int(255*opacity))
                 else:
                     self.simple_style.iconstyle.scale = sym_size / 10
                     self.simple_style.iconstyle.icon.href = GOOGLE_ICONS[self.google_icons[google_icon]]
@@ -682,7 +684,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 # self.feedback.pushInfo('cat_style: {}'.format(cat_style))
                 symbol = category.symbol()
                 # self.feedback.pushInfo('symbol dump: {}'.format(symbol.dump()))
-                opacity = symbol.opacity()
+                opacity = symbol.opacity() * self.layer_opacity
                 # self.feedback.pushInfo('symbol opacity: {}'.format(opacity))
                 # self.feedback.pushInfo('categories idx: {}'.format(idx))
                 if geomtype == QgsWkbTypes.PointGeometry:
@@ -702,6 +704,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                         kml.addfile(path)
                         cat_style.iconstyle.scale = sym_size / 15
                         cat_style.iconstyle.icon.href = 'files/' + name
+                        cat_style.iconstyle.color = '{:02x}ffffff'.format(int(255*opacity))
                     else:
                         cat_style.iconstyle.scale = sym_size / 10
                         cat_style.iconstyle.icon.href = GOOGLE_ICONS[self.google_icons[google_icon]]
@@ -736,7 +739,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             for idx, range in enumerate(self.render.ranges()):
                 cat_style = simplekml.Style()
                 symbol = range.symbol()
-                opacity = symbol.opacity()
+                opacity = symbol.opacity() * self.layer_opacity
                 # self.feedback.pushInfo(' categories idx: {}'.format(idx))
                 if geomtype == QgsWkbTypes.PointGeometry:
                     # self.feedback.pushInfo('  PointGeometry')
@@ -755,6 +758,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                         kml.addfile(path)
                         cat_style.iconstyle.scale = sym_size / 15
                         cat_style.iconstyle.icon.href = 'files/' + name
+                        cat_style.iconstyle.color = '{:02x}ffffff'.format(int(255*opacity))
                     else:
                         cat_style.iconstyle.scale = sym_size / 10
                         cat_style.iconstyle.icon.href = GOOGLE_ICONS[self.google_icons[google_icon]]
