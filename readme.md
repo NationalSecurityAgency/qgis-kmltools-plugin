@@ -60,6 +60,7 @@ This provides the ability to export a QGIS point, line, or polygon layer as a Go
 The following describes some of the functionality.
 
 * ***Name/Label field*** - This is the name or label that will be displayed in Google Earth.
+* ***Use hidden points to display polygon labels*** - Labels on polygons are not normally displayed in Google Earth. By checking this box a hidden point will be created at the polygon's centroid so that a label will be displayed over the polygon.
 * ***Description fields*** - By default all fields are selected to be included in the KMZ. When the user clicks on a placemark in Google Earth, these fields will be displayed. If only one field is specified then it will be treated as a description field.
 * ***Export style for single, categorized, and graduated symbols*** - Select this if you want to export the QGIS style information to KML. Note that for lines and polygons, you can only use simple styles. If the style is not single, categorized, or graduated, then no style information will be exported.
 * ***Point layers: Use the following Google icon, but use QGIS icon color and size*** - Rather than display the QGIS icon shape, you can select one of the Google Earth icon shapes to be displayed for point features. The size and color of the icon will be determined by QGIS.

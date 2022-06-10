@@ -54,6 +54,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
     PrmSelectedFeaturesOnly = 'SelectedFeaturesOnly'
     PrmOutputKmz = 'OutputKmz'
     PrmNameField = 'NameField'
+    PrmHiddenPolygonPointLabel = 'HiddenPolygonPointLabel'
     PrmDescriptionField = 'DescriptionField'
     PrmExportStyle = 'ExportStyle'
     PrmUseGoogleIcon = 'UseGoogleIcon'
@@ -100,6 +101,13 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 defaultValue='name',
                 optional=True
             )
+        )
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                self.PrmHiddenPolygonPointLabel,
+                'Use hidden points to display polygon labels',
+                False,
+                optional=True)
         )
         if Qgis.QGIS_VERSION_INT >= 31200:
             self.addParameter(
@@ -318,6 +326,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         desc_fields = self.parameterAsFields(parameters, self.PrmDescriptionField, context)
         desc_cnt = len(desc_fields)
         export_style = self.parameterAsInt(parameters, self.PrmExportStyle, context)
+        poly_hidden_point_label = self.parameterAsInt(parameters, self.PrmHiddenPolygonPointLabel, context)
         if self.PrmUseGoogleIcon not in parameters or parameters[self.PrmUseGoogleIcon] is None:
             google_icon = None
         else:
@@ -421,7 +430,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 except Exception:
                     altitude = 0
 
-            if geom.isMultipart() or (name_field and geomtype == QgsWkbTypes.PolygonGeometry):
+            if geom.isMultipart() or (name_field and geomtype == QgsWkbTypes.PolygonGeometry and poly_hidden_point_label):
                 kmlgeom = folder.newmultigeometry()
                 kml_item = kmlgeom
             else:
@@ -450,7 +459,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     else:
                         kmlpart.coords = [(pt.x(), pt.y(), altitude + altitude_addend) for pt in part]
             elif geomtype == QgsWkbTypes.PolygonGeometry:  # POLYGONS
-                if name_field:
+                if name_field and poly_hidden_point_label:
                     try:
                         centroid = geom.centroid().asPoint()
                         name = '{}'.format(feature[name_field])
