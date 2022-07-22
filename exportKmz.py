@@ -399,7 +399,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 feedback.reportError('Only single, categorized, and graduated symbol styles can be exported. Processing will continue without symbol style export.')
                 export_style = 0
             if export_style:
-                self.initStyles(export_style, google_icon, name_field, geomtype, kml)
+                self.initStyles(export_style, google_icon, name_field, poly_hidden_point_label, geomtype, kml)
         
         folder = kml.newfolder(name=layer.sourceName())
         altitude = 0
@@ -632,7 +632,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 kml_item.style = self.cat_styles[key]
                 # self.feedback.pushInfo('  style {}'.format(kml_item.style))
 
-    def initStyles(self, symtype, google_icon, name_field, geomtype, kml):
+    def initStyles(self, symtype, google_icon, name_field, poly_hidden_point_label, geomtype, kml):
         '''self.feedback.pushInfo(' ')
         self.feedback.pushInfo('initStyles type: {}'.format(symtype))
         self.feedback.pushInfo('name_field: {}'.format(name_field))'''
@@ -669,7 +669,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 self.simple_style.linestyle.width = symbol_width * self.line_width_factor
                 if name_field:
                     self.simple_style.linestyle.gxlabelvisibility = True
-            else:
+            else:  # Polygon
                 symbol_layer = symbol.symbolLayer(0)
                 stroke_style = symbol_layer.strokeStyle()
                 if stroke_style == 0:
@@ -679,7 +679,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 self.simple_style.linestyle.color = qcolor2kmlcolor(symbol_layer.strokeColor(), opacity)
                 self.simple_style.linestyle.width = stroke_width * self.line_width_factor
                 self.simple_style.polystyle.color = qcolor2kmlcolor(symbol_layer.color(), opacity)
-                if name_field:
+                if name_field and poly_hidden_point_label:
                     self.simple_style.iconstyle.scale = 0
         elif symtype == 2: # Categorized Symbols
             for idx, category in enumerate(self.render.categories()):
@@ -728,7 +728,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     cat_style.linestyle.width = symbol_width * self.line_width_factor
                     if name_field:
                         cat_style.linestyle.gxlabelvisibility = True
-                else:
+                else:  # Polygon
                     # self.feedback.pushInfo('  PolygonGeometry')
                     symbol_layer = symbol.symbolLayer(0)
                     # self.feedback.pushInfo('  symbol_layer: {}'.format(symbol_layer))
@@ -741,7 +741,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     cat_style.linestyle.color = qcolor2kmlcolor(symbol_layer.strokeColor(), opacity)
                     cat_style.linestyle.width = stroke_width * self.line_width_factor
                     cat_style.polystyle.color = qcolor2kmlcolor(symbol_layer.color(), opacity)
-                    if name_field:
+                    if name_field and poly_hidden_point_label:
                         cat_style.iconstyle.scale = 0
                 self.cat_styles[idx] = cat_style
         else: # Graduated Symbols
@@ -782,7 +782,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     cat_style.linestyle.width = sym_size * self.line_width_factor
                     if name_field:
                         cat_style.linestyle.gxlabelvisibility = True
-                else:
+                else:  # Polygon
                     # self.feedback.pushInfo('  PolygonGeometry')
                     symbol_layer = symbol.symbolLayer(0)
                     stroke_style = symbol_layer.strokeStyle()
@@ -794,7 +794,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     cat_style.linestyle.color = qcolor2kmlcolor(symbol_layer.strokeColor(), opacity)
                     cat_style.linestyle.width = sym_size * self.line_width_factor
                     cat_style.polystyle.color = color
-                    if name_field:
+                    if name_field and poly_hidden_point_label:
                         cat_style.iconstyle.scale = 0
                 '''self.feedback.pushInfo('sym_size: {}'.format(sym_size))
                 self.feedback.pushInfo('color: {}'.format(color))'''
