@@ -69,6 +69,7 @@ The following describes some of the functionality.
 * ***Altitude mode field*** - Specify a field in the attribute table to be used as the altitude mode.
 * ***Altitude field*** - Specify a field in the attribute table to be used as the altitude. This value must be in meters.
 * ***Altitude addend*** - Specify a quantity to be used as addend for altitude (from Altitude field or Z attribute). This value must be in meters.
+* ***Extend sides to ground*** - When checked, points, lines and polygon edges will be extruded to the ground.
 * ***Date/Time stamp field*** - This specifies a field in the attribute table that contains a date and time. This can be a QGIS QDateTime field, QDate field, QString field, int or double field. It attempts to smartly parse any string field. If the field is an int or double then at assumes the value is EPOCH time in seconds. In the advanced parameters, separate date and time fields can be used.
 * ***Date/Time span begin field*** - This selects a field for the date/time span begin field.
 * ***Date/Time span end field*** - This selects a field for the date/time span end field.

@@ -64,6 +64,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
     PrmAltitudeModeField = 'AltitudeModeField'
     PrmAltitudeField = 'AltitudeField'
     PrmAltitudeAddend = 'AltitudeAddend'
+    PrmExtendSidesToGround = 'ExtendSidesToGround'
     PrmDateTimeStampField = 'DateTimeStampField'
     PrmDateStampField = 'DateStampField'
     PrmTimeStampField = 'TimeStampField'
@@ -192,6 +193,13 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 defaultValue=0,
                 optional=True
             )
+        )
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                self.PrmExtendSidesToGround,
+                'Extend sides to ground',
+                False,
+                optional=True)
         )
         self.addParameter(
             QgsProcessingParameterField(
@@ -340,6 +348,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         alt_mode_field = self.parameterAsString(parameters, self.PrmAltitudeModeField, context)
         altitude_field = self.parameterAsString(parameters, self.PrmAltitudeField, context)
         altitude_addend = self.parameterAsDouble(parameters, self.PrmAltitudeAddend, context)
+        extend_sides_to_ground = self.parameterAsInt(parameters, self.PrmExtendSidesToGround, context)
         date_time_stamp_field = self.parameterAsString(parameters, self.PrmDateTimeStampField, context)
         date_stamp_field = self.parameterAsString(parameters, self.PrmDateStampField, context)
         time_stamp_field = self.parameterAsString(parameters, self.PrmTimeStampField, context)
@@ -439,7 +448,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             if geomtype == QgsWkbTypes.PointGeometry:  # POINTS
                 for pt in geom.parts():
                     kmlpart = kmlgeom.newpoint()
-                    self.setAltitudeMode(kmlpart, feature, default_alt_mode, alt_mode_field)
+                    self.setAltitudeMode(kmlpart, feature, default_alt_mode, alt_mode_field, extend_sides_to_ground)
                     if kml_item is None:
                         kml_item = kmlpart
                     if hasz:
@@ -451,7 +460,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                 for part in geom.parts():
                     # feedback.pushInfo('part type {}'.format(type(part)))
                     kmlpart = kmlgeom.newlinestring()
-                    self.setAltitudeMode(kmlpart, feature, default_alt_mode, alt_mode_field)
+                    self.setAltitudeMode(kmlpart, feature, default_alt_mode, alt_mode_field, extend_sides_to_ground)
                     if kml_item is None:
                         kml_item = kmlpart
                     if hasz:
@@ -469,7 +478,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
 
                 for part in geom.parts():
                     kmlpart = kmlgeom.newpolygon()
-                    self.setAltitudeMode(kmlpart, feature, default_alt_mode, alt_mode_field)
+                    self.setAltitudeMode(kmlpart, feature, default_alt_mode, alt_mode_field, extend_sides_to_ground)
                     if kml_item is None:
                         kml_item = kmlpart
                     num_interior_rings = part.numInteriorRings()
@@ -659,12 +668,16 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     self.simple_style.iconstyle.scale = sym_size / 10
                     self.simple_style.iconstyle.icon.href = GOOGLE_ICONS[self.google_icons[google_icon]]
                     self.simple_style.iconstyle.color = qcolor2kmlcolor(symbol.color())
+                # When extruding the lines, the sets the extruded line color to that of the icon color
+                self.simple_style.linestyle.color = qcolor2kmlcolor(symbol.color())
             elif geomtype == QgsWkbTypes.LineGeometry:
                 symbol_width = symbol.width()
                 # self.feedback.pushInfo('symbol_width: {}'.format(symbol_width))
                 if symbol_width == 0:
                     symbol_width = 0.5
                 self.simple_style.linestyle.color = qcolor2kmlcolor(symbol.color(), opacity)
+                # When extruding the line area this sets the area color
+                self.simple_style.polystyle.color = self.simple_style.linestyle.color
                 # self.feedback.pushInfo('linestyle.color: {}'.format(self.simple_style.linestyle.color))
                 self.simple_style.linestyle.width = symbol_width * self.line_width_factor
                 if name_field:
@@ -718,6 +731,8 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                         cat_style.iconstyle.scale = sym_size / 10
                         cat_style.iconstyle.icon.href = GOOGLE_ICONS[self.google_icons[google_icon]]
                         cat_style.iconstyle.color = qcolor2kmlcolor(symbol.color())
+                    # When extruding the lines, the sets the extruded line color to that of the icon color
+                    cat_style.linestyle.color = qcolor2kmlcolor(symbol.color())
                 elif geomtype == QgsWkbTypes.LineGeometry:
                     # self.feedback.pushInfo('  LineGeometry')
                     symbol_width = symbol.width()
@@ -726,6 +741,8 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                         symbol_width = 0.5
                     cat_style.linestyle.color = qcolor2kmlcolor(symbol.color(), opacity)
                     cat_style.linestyle.width = symbol_width * self.line_width_factor
+                    # When extruding the line area this sets the area color
+                    cat_style.polystyle.color = cat_style.linestyle.color
                     if name_field:
                         cat_style.linestyle.gxlabelvisibility = True
                 else:  # Polygon
@@ -772,6 +789,8 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                         cat_style.iconstyle.scale = sym_size / 10
                         cat_style.iconstyle.icon.href = GOOGLE_ICONS[self.google_icons[google_icon]]
                         cat_style.iconstyle.color = color
+                    # When extruding the lines, the sets the extruded line color to that of the icon color
+                    cat_style.linestyle.color = qcolor2kmlcolor(symbol.color())
                 elif geomtype == QgsWkbTypes.LineGeometry:
                     # self.feedback.pushInfo('  LineGeometry')
                     color = qcolor2kmlcolor(symbol.color(), opacity)
@@ -780,6 +799,8 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     if sym_size == 0:
                         sym_size = 0.5
                     cat_style.linestyle.width = sym_size * self.line_width_factor
+                    # When extruding the line area this sets the area color
+                    cat_style.polystyle.color = cat_style.linestyle.color
                     if name_field:
                         cat_style.linestyle.gxlabelvisibility = True
                 else:  # Polygon
@@ -844,9 +865,11 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         str = '\n'.join(strs)
         kml_item.description = str
 
-    def setAltitudeMode(self, kml_item, f, alt_mode, mode_field):
+    def setAltitudeMode(self, kml_item, f, alt_mode, mode_field, extend_sides_to_ground):
         try:
             mode = None
+            if extend_sides_to_ground:
+                kml_item.extrude = 1
             if mode_field:
                 mode = f[mode_field]
             if mode not in ALTITUDE_MODES and alt_mode:

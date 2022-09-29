@@ -2,7 +2,7 @@
 name=KML Tools
 qgisMinimumVersion=3.10.1
 description=Fast KML/KMZ importer, exporter, with description field expansion and ground overlay to GeoTIFF conversions.
-version=3.1.22
+version=3.1.23
 author=C Hamilton
 email=adenaculture@gmail.com
 about=
@@ -16,6 +16,7 @@ icon=icon.png
 experimental=False
 deprecated=False
 changelog=
+    3.1.23 - Add an extend to ground flag
     3.1.22 - Don't use a hidden style if the hidden point for polygon labels is not selected.
     3.1.21 - Make hidden point for polygon labels optional.
     3.1.20 - Added layer transparency support
