@@ -160,7 +160,7 @@ class CreateGroundOverlayGeoTiffAlgorithm(QgsProcessingAlgorithm):
         return 'groundoverlay2geotiff'
 
     def icon(self):
-        return QIcon(os.path.dirname(__file__) + '/icons/gnd_overlay_import.svg')
+        return QIcon(os.path.dirname(__file__) + '/icons/gnd_overlay.svg')
 
     def displayName(self):
         return tr('Ground Overlay to GeoTIFF Image')
