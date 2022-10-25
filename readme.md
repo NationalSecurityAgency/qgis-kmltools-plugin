@@ -106,7 +106,7 @@ This algorithm looks through the KML/KMZ for KML **GroundOverlay** tags and if t
 
 The parameters are the input KML or KMZ and the location of a folder to store the images in. You can also specify whether to automatically load the converted GeoTIFF images into QGIS or not. If any images are found that cannot be converted, they will be reported in the algorithm log. If rotation is involved in the conversion process, the output GeoTIFFs are compatible with QGIS, but may not be compatible with other programs. If needed, run these images through ***GDAL->Raster projections->Warp*** to make them compatible with other programs.
 
-### <img src="icons/gnd_overlay_import.svg" alt="Extract KML/KMZ Ground Overlays"> ***Ground Overlay to GeoTIFF Image***
+### <img src="icons/gnd_overlay.svg" alt="Ground Overlay to GeoTIFF Image"> ***Ground Overlay to GeoTIFF Image***
 
 This algorithm manually allows the user to specify an image and enter the north, south, east, west and rotation parameters to convert the input image into a GeoTIFF image. If rotation is not zero, the output GeoTiff is compatible with QGIS, but may not be compatible with other programs. If needed, run the output of this algorithm through ***GDAL->Raster projections->Warp*** to make it compatible with other programs.
 
