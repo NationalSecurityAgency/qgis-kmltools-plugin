@@ -36,25 +36,29 @@ class KMLTools(object):
 
     def initGui(self):
         """Create the menu & tool bar items within QGIS"""
+        self.toolbar = self.iface.addToolBar('KML Tools Toolbar')
+        self.toolbar.setObjectName('KMLToolsToolbar')
+        self.toolbar.setToolTip('KML Tools Toolbar')
+
         icon = QIcon(os.path.dirname(__file__) + "/icons/import.svg")
         self.kmlAction = QAction(icon, "Import KML/KMZ", self.iface.mainWindow())
         self.kmlAction.triggered.connect(self.showDialog)
         self.kmlAction.setCheckable(False)
-        self.iface.addToolBarIcon(self.kmlAction)
+        self.toolbar.addAction(self.kmlAction)
         self.iface.addPluginToVectorMenu("KML Tools", self.kmlAction)
         # Export KML Menu
         icon = QIcon(os.path.dirname(__file__) + "/icons/export.svg")
         self.kmlExportAction = QAction(icon, "Export KMZ", self.iface.mainWindow())
         self.kmlExportAction.triggered.connect(self.exportKMZ)
         self.kmlExportAction.setCheckable(False)
-        self.iface.addToolBarIcon(self.kmlExportAction)
+        self.toolbar.addAction(self.kmlExportAction)
         self.iface.addPluginToVectorMenu("KML Tools", self.kmlExportAction)
         # Expansion of HTML description field
         icon = QIcon(os.path.dirname(__file__) + "/icons/html.svg")
         self.htmlDescAction = QAction(icon, "Expand HTML description field", self.iface.mainWindow())
         self.htmlDescAction.triggered.connect(self.htmlDescDialog)
         self.htmlDescAction.setCheckable(False)
-        self.iface.addToolBarIcon(self.htmlDescAction)
+        self.toolbar.addAction(self.htmlDescAction)
         self.iface.addPluginToVectorMenu("KML Tools", self.htmlDescAction)
         if Qgis.QGIS_VERSION_INT >= 31400:
             # Extract KML/KMZ Ground Overlays
@@ -63,11 +67,14 @@ class KMLTools(object):
             self.extractGndAction.triggered.connect(self.extractGroundOverlays)
             self.extractGndAction.setCheckable(False)
             self.iface.addPluginToRasterMenu("KML Tools", self.extractGndAction)
+            self.toolbar.addAction(self.extractGndAction)
 
+            icon = QIcon(os.path.dirname(__file__) + "/icons/gnd_overlay.svg")
             self.createGndAction = QAction(icon, "Create Ground Overlay GeoTIFF Image", self.iface.mainWindow())
             self.createGndAction.triggered.connect(self.createGroundOverlayGeoTIFF)
             self.createGndAction.setCheckable(False)
             self.iface.addPluginToRasterMenu("KML Tools", self.createGndAction)
+            self.toolbar.addAction(self.createGndAction)
         # Help
         icon = QIcon(os.path.dirname(__file__) + '/icons/help.svg')
         self.helpAction = QAction(icon, "Help", self.iface.mainWindow())
@@ -84,14 +91,23 @@ class KMLTools(object):
         self.iface.removePluginVectorMenu("KML Tools", self.kmlAction)
         self.iface.removePluginVectorMenu("KML Tools", self.kmlExportAction)
         self.iface.removePluginVectorMenu("KML Tools", self.htmlDescAction)
+        self.iface.removePluginVectorMenu("KML Tools", self.helpAction)
+        self.kmlAction.deleteLater()
+        self.kmlAction = None
+        self.kmlExportAction.deleteLater()
+        self.kmlExportAction = None
+        self.htmlDescAction.deleteLater()
+        self.htmlDescAction = None
         if Qgis.QGIS_VERSION_INT >= 31400:
             self.iface.removePluginRasterMenu("KML Tools", self.extractGndAction)
             self.iface.removePluginRasterMenu("KML Tools", self.createGndAction)
             self.iface.removePluginRasterMenu("KML Tools", self.helpAction)
-        self.iface.removePluginVectorMenu("KML Tools", self.helpAction)
-        self.iface.removeToolBarIcon(self.kmlAction)
-        self.iface.removeToolBarIcon(self.kmlExportAction)
-        self.iface.removeToolBarIcon(self.htmlDescAction)
+            self.extractGndAction.deleteLater()
+            self.extractGndAction = None
+            self.createGndAction.deleteLater()
+            self.createGndAction = None
+        self.toolbar.deleteLater()
+        self.toolbar = None
         QgsApplication.processingRegistry().removeProvider(self.provider)
 
     def showDialog(self):
