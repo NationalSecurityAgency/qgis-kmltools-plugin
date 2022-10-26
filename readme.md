@@ -2,7 +2,7 @@
 
 The native QGIS importer creates separate layers for each folder within a KML/KMZ. If there are hundreds or thousands of layers, the import can be very slow, crash QGIS, or create an undesirable number of layers. This plugin only creates one point layer, one line layer, and one polygon layer. This makes the KML/KMZ import very quick. It adds the nested folder structure to a field in the QGIS layer which can then be used for sorting and filtering based on the folder structure in the KML. A KMZ can be exported with simple, categorized, and graduated QGIS styling for points, lines and polygons. Recently, limited support has been added to convert embedded ground overlay images into GeoTIFF images.
 
-***KML Tools*** can be found in the QGIS menu under ***Vector->KML Tools*** and ***Raster->KML tools***, on the tool bar, or in the Processing Toolbox under ***KML Tools****. It has three vector tools and two raster tools. This shows the tools in the Processing Toolbox.
+***KML Tools*** can be found in the QGIS menu under ***Vector->KML Tools*** and ***Raster->KML tools***, on the tool bar, or in the Processing Toolbox under ***KML Tools***. It has three vector tools and two raster tools. This shows the tools in the Processing Toolbox.
 
 <div style="text-align:center"><img src="doc/processing.jpg" alt="Processing Toolbox"></div>
 
