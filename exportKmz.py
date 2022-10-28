@@ -5,7 +5,8 @@ from qgis.PyQt.QtGui import QIcon
 
 from qgis.core import (
     QgsCoordinateTransform, QgsCoordinateReferenceSystem, QgsCompoundCurve,
-    QgsProject, QgsRenderContext, QgsWkbTypes, Qgis, QgsExpression, QgsExpressionContext, QgsExpressionContextUtils)
+    QgsProject, QgsRenderContext, QgsWkbTypes, Qgis, QgsExpression, QgsFeatureRequest,
+    QgsExpressionContext, QgsExpressionContextUtils)
 
 from qgis.core import (
     QgsProcessing,
@@ -59,6 +60,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
     PrmExportStyle = 'ExportStyle'
     PrmUseGoogleIcon = 'UseGoogleIcon'
     PrmLineWidthFactor = 'LineWidthFactor'
+    PrmSubFolderField = 'SubFolderField'
     PrmAltitudeInterpretation = 'AltitudeInterpretation'
     PrmAltitudeMode = 'AltitudeMode'
     PrmAltitudeModeField = 'AltitudeModeField'
@@ -257,6 +259,15 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(param)
         param = QgsProcessingParameterField(
+            self.PrmSubFolderField,
+            'Field to create categorized KML subfolders',
+            parentLayerParameterName=self.PrmInputLayer,
+            type=QgsProcessingParameterField.Any,
+            optional=True
+        )
+        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(param)
+        param = QgsProcessingParameterField(
             self.PrmDateStampField,
             'Date stamp field',
             parentLayerParameterName=self.PrmInputLayer,
@@ -345,6 +356,10 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             default_alt_mode = None
         else:
             default_alt_mode = ALTITUDE_MODES[self.parameterAsEnum(parameters, self.PrmAltitudeMode, context)]
+        if self.PrmSubFolderField not in parameters or parameters[self.PrmSubFolderField] is None:
+            group_by_subfolders = None
+        else:
+            group_by_subfolders = self.parameterAsString(parameters, self.PrmSubFolderField, context)
         alt_mode_field = self.parameterAsString(parameters, self.PrmAltitudeModeField, context)
         altitude_field = self.parameterAsString(parameters, self.PrmAltitudeField, context)
         altitude_addend = self.parameterAsDouble(parameters, self.PrmAltitudeAddend, context)
@@ -410,17 +425,28 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             if export_style:
                 self.initStyles(export_style, google_icon, name_field, poly_hidden_point_label, geomtype, kml)
         
-        folder = kml.newfolder(name=layer.sourceName())
+        basefolder = folder = kml.newfolder(name=layer.sourceName())
         altitude = 0
+
+        if group_by_subfolders:
+            request = QgsFeatureRequest()
+            request.addOrderBy('"{}"'.format(group_by_subfolders))
+
         if selected_features_only:
-            iterator = layer.getSelectedFeatures()
+            if group_by_subfolders:
+                iterator = layer.getSelectedFeatures(request)
+            else:
+                iterator = layer.getSelectedFeatures()
             featureCount = layer.selectedFeatureCount()
         else:
             featureCount = layer.featureCount()
-            iterator = layer.getFeatures()
+            if group_by_subfolders:
+                iterator = layer.getFeatures(request)
+            else:
+                iterator = layer.getFeatures()
         total = 100.0 / featureCount if featureCount else 0
         num_features = 0
-        
+        last_category = None
         for cnt, feature in enumerate(iterator):
             if feedback.isCanceled():
                 break
@@ -438,7 +464,13 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     altitude = float(feature[altitude_field])
                 except Exception:
                     altitude = 0
-
+            if group_by_subfolders:
+                current_category = '{}'.format(feature[group_by_subfolders])
+                if current_category == '':
+                    current_category = 'Uncategorized'
+                if current_category != last_category:
+                    last_category = current_category
+                    folder = basefolder.newfolder(name=current_category)
             if geom.isMultipart() or (name_field and geomtype == QgsWkbTypes.PolygonGeometry and poly_hidden_point_label):
                 kmlgeom = folder.newmultigeometry()
                 kml_item = kmlgeom
