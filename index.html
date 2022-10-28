@@ -38,7 +38,7 @@ code {
 <body>
 <h1>QGIS KML Tools</h1>
 <p>The native QGIS importer creates separate layers for each folder within a KML/KMZ. If there are hundreds or thousands of layers, the import can be very slow, crash QGIS, or create an undesirable number of layers. This plugin only creates one point layer, one line layer, and one polygon layer. This makes the KML/KMZ import very quick. It adds the nested folder structure to a field in the QGIS layer which can then be used for sorting and filtering based on the folder structure in the KML. A KMZ can be exported with simple, categorized, and graduated QGIS styling for points, lines and polygons. Recently, limited support has been added to convert embedded ground overlay images into GeoTIFF images.</p>
-<p><strong><em>KML Tools</em></strong> can be found in the QGIS menu under <strong><em>Vector-&gt;KML Tools</em></strong> and <strong><em>Raster-&gt;KML tools</em></strong>, on the tool bar, or in the Processing Toolbox under <strong><em>KML Tools</em></strong>*. It has three vector tools and two raster tools. This shows the tools in the Processing Toolbox.</p>
+<p><strong><em>KML Tools</em></strong> can be found in the QGIS menu under <strong><em>Vector-&gt;KML Tools</em></strong> and <strong><em>Raster-&gt;KML tools</em></strong>, on the tool bar, or in the Processing Toolbox under <strong><em>KML Tools</em></strong>. It has three vector tools and two raster tools. This shows the tools in the Processing Toolbox.</p>
 <div style="text-align:center"><img src="doc/processing.jpg" alt="Processing Toolbox"></div>
 
 <h2>Vector Tools</h2>
@@ -108,6 +108,10 @@ code {
 
 <ul>
 <li><strong><em>Line width multiplication factor</em></strong> - Line widths in Google Earth visually appear smaller than in QGIS so this provides a method to make them look similar. By default this is set to 2.</li>
+<li><strong><em>Select field to create categorized KML subfolders</em></strong> - You can select an attribute to create categorized folders in the output KML. This is an example of National Parks layer exporated as a KML and displayed in Google Earth. You can see the National Parks categorized by their type.</li>
+</ul>
+<p><div style="text-align:center"><img src="doc/categorized_folders.jpg" alt="Advanced parameters"></div></p>
+<ul>
 <li>The rest of the advanced parameters allow the use of separate date and time fields to be combined into a single KML time stamp, time span begin, or time span end field.</li>
 </ul>
 <p>KML Tools does not implement the entire KML specification. It focuses on point, line and polygon geometries within the KML. If for some reason you find that it is missing something, let us know and perhaps we can add it.</p>

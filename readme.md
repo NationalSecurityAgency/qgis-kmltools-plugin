@@ -80,6 +80,10 @@ The following describes some of the functionality.
 <div style="text-align:center"><img src="doc/export_advanced.jpg" alt="Advanced parameters"></div>
 
 * ***Line width multiplication factor*** - Line widths in Google Earth visually appear smaller than in QGIS so this provides a method to make them look similar. By default this is set to 2.
+* ***Select field to create categorized KML subfolders*** - You can select an attribute to create categorized folders in the output KML. This is an example of National Parks layer exporated as a KML and displayed in Google Earth. You can see the National Parks categorized by their type.
+
+   <div style="text-align:center"><img src="doc/categorized_folders.jpg" alt="Advanced parameters"></div>
+   
 * The rest of the advanced parameters allow the use of separate date and time fields to be combined into a single KML time stamp, time span begin, or time span end field.
 
 KML Tools does not implement the entire KML specification. It focuses on point, line and polygon geometries within the KML. If for some reason you find that it is missing something, let us know and perhaps we can add it.
