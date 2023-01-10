@@ -78,6 +78,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
     PrmTimeEndField = 'TimeEndField'
     PrmPhotoField = 'PhotoField'
     PrmPhotoDir = 'PhotoDir'
+    PrmUseDescBR = 'UseDescBR'
     epsg4326 = QgsCoordinateReferenceSystem("EPSG:4326")
     temp_dir = tempfile.gettempdir()
 
@@ -267,6 +268,13 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         )
         param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(param)
+        param = QgsProcessingParameterBoolean(
+                self.PrmUseDescBR,
+                'Add line breaks within description fields',
+                True,
+                optional=True)
+        param.setFlags(param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(param)
         param = QgsProcessingParameterField(
             self.PrmDateStampField,
             'Date stamp field',
@@ -329,6 +337,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
         filename = self.parameterAsFileOutput(parameters, self.PrmOutputKmz, context)
         layer = self.parameterAsLayer(parameters, self.PrmInputLayer, context)
         selected_features_only = self.parameterAsInt(parameters, self.PrmSelectedFeaturesOnly, context)
+        add_line_breaks = self.parameterAsInt(parameters, self.PrmUseDescBR, context)
 
         # Before we go further check to make sure we have a valid vector layer
         if not layer:
@@ -553,7 +562,7 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
             if desc_cnt == 1:
                 self.exportDescription(kml_item, feature[desc_fields[0]], photo_path)
             elif desc_cnt > 1:
-                self.exportFields(kml_item, desc_fields, feature, photo_path)
+                self.exportFields(kml_item, desc_fields, feature, add_line_breaks, photo_path)
 
             # Process the first date / time fields
             date_time_str = self.parseDateTimeValues(
@@ -885,24 +894,28 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
     def exportDescription(self, kml_item, desc, photo_path):
         desc = self.get_attribute_str(desc)
         if photo_path:
-            desc = '<img src="{}" style="max-width:300"/><br/><br/>{}'.format(self.photos[photo_path], desc)
+            desc = '<img src="{}" style="max-width:300;"/><br/><br/>{}'.format(self.photos[photo_path], desc)
         else:
             desc = '{}'.format(desc)
         if desc:
             kml_item.description = desc
 
-    def exportFields(self, kml_item, fields, f, photo_path):
+    def exportFields(self, kml_item, fields, f, add_line_breaks, photo_path):
         strs = ['<![CDATA[']
         if photo_path:
-            strs.append('<img src="{}" style="max-width:300"/><br/><br/>'.format(self.photos[photo_path]))
+            strs.append('<img src="{}" style="max-width:300;"/><br/><br/>'.format(self.photos[photo_path]))
         strs.append('<table>')
         for row, field in enumerate(fields):
             v = self.get_attribute_str(f[field])
             kml_item.extendeddata.newdata(name=field, value=v, displayname=field)
+            if add_line_breaks:
+                v = '<br/>'.join(v.splitlines())
             if row & 1:
-                strs.append('<tr><td>{}</td><td>$[{}]</td></tr>'.format(field, field))
+                # strs.append('<tr><td>{}</td><td>$[{}]</td></tr>'.format(field, field))
+                strs.append('<tr><td>{}</td><td>{}</td></tr>'.format(field, v))
             else:
-                strs.append('<tr style="background-color:#DDDDFF"><td>{}</td><td>$[{}]</td></tr>'.format(field, field))
+                # strs.append('<tr style="background-color:#DDDDFF;"><td>{}</td><td>$[{}]</td></tr>'.format(field, field))
+                strs.append('<tr style="background-color:#DDDDFF;"><td>{}</td><td>{}</td></tr>'.format(field, v))
         strs.append('</table>\n]]>')
         str = '\n'.join(strs)
         kml_item.description = str
