@@ -2,7 +2,7 @@
 name=KML Tools
 qgisMinimumVersion=3.10.1
 description=Fast KML/KMZ importer, exporter, with description field expansion and ground overlay to GeoTIFF conversions.
-version=3.1.27
+version=3.1.28
 author=C Hamilton
 email=adenaculture@gmail.com
 about=
@@ -16,6 +16,7 @@ icon=icon.png
 experimental=False
 deprecated=False
 changelog=
+    3.1.28 - Fix extract gound overlays algorithm so it doesn't overwrite images with same names.
     3.1.27 - Add line breaks in KmlExport description.
     3.1.26 - Fix KMZ export of special characters in name labels
     3.1.25 - Add the ability to use an attribute as folders in the KML export.

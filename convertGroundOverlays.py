@@ -107,8 +107,11 @@ class ConvertGroundOverlayAlgorithm(QgsProcessingAlgorithm):
             feedback.reportError(tr('Failure in kml extraction - May return partial results.'))
             handler.endDocument()
 
+        self.namelist = set()
         # Iterate through each found overlay images
         for overlay in self.overlays:
+            if feedback.isCanceled():
+                break
             north = overlay[0]
             south = overlay[1]
             east = overlay[2]
@@ -122,6 +125,10 @@ class ConvertGroundOverlayAlgorithm(QgsProcessingAlgorithm):
                 try:
                     image = kmz.read(href)
                     output_file = os.path.basename(href)
+                    # Could use this method to prevent multiple names overwriting each other
+                    # Could be problematic if these are abloslute path filenames on the computer
+                    # (out_dir, output_file) = os.path.split(href)
+                    # '_'.join(out_dir.replace('\\', '/').split('/'))
                     file_name, ext = os.path.splitext(output_file)
                     # Write out a temporary image
                     temp_file_name = os.path.join(out_folder,'{}_temp{}'.format(file_name, ext))
@@ -145,6 +152,8 @@ class ConvertGroundOverlayAlgorithm(QgsProcessingAlgorithm):
             if not raster.isValid():
                 feedback.reportError('Invalid raster image: {}'.format(href))
                 continue
+            # Make sure the name is unique so the images are not overwritten
+            file_name = self.uniqueName(file_name)
             out_path = os.path.join(out_folder, file_name+".tif")
             if rotation == 0:
                 status = processing.run("gdal:translate", {'INPUT': raster,
@@ -205,6 +214,15 @@ class ConvertGroundOverlayAlgorithm(QgsProcessingAlgorithm):
 
         return ({})
 
+    def uniqueName(self, name):
+        index = 1
+        n = name
+        while n in self.namelist:
+            n = '{}_{}'.format(name, index)
+            index += 1
+        # Keep track of all of the used names
+        self.namelist.add(n)
+        return (n)
 
     def groundoverlay(self, north, south, east, west, rotation, href):
         # self.feedback.pushInfo('In groundoverlay')
