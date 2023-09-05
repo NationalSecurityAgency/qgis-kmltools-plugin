@@ -310,6 +310,7 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         self.inWhen = False
         self.inExtendedData = False
         self.inData = False
+        self.inSimpleData = False
         self.inDataValue = False
         self.inPoint = False
         self.inLineString = False
@@ -424,6 +425,12 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
                 for (k, v) in list(attr.items()):
                     if k == 'name':
                         self.dataName = v
+            elif name == "SimpleData" and self.inExtendedData:
+                self.inSimpleData = True
+                self.dataName = None
+                for (k, v) in list(attr.items()):
+                    if k == 'name':
+                        self.dataName = v
             elif name == 'value' and self.inData:
                 self.inDataValue = True
             elif name == "ExtendedData":
@@ -454,6 +461,8 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
         elif self.inAltitudeMode:
             self.altitudeMode += data
         elif self.inDataValue:
+            self.dataValue += data
+        elif self.inSimpleData:
             self.dataValue += data
 
     def endElement(self, name):
@@ -526,6 +535,11 @@ class PlacemarkHandler(xml.sax.handler.ContentHandler, QObject):
                 self.resetSettings()
             elif name == 'Data' and self.inExtendedData:
                 self.inData = False
+            elif name == 'SimpleData' and self.inExtendedData:
+                self.inSimpleData = False
+                if self.dataName:
+                    self.extendedData[self.dataName] = self.dataValue.strip()
+                self.dataValue = ''
             elif name == 'value' and self.inData:
                 if self.dataName:
                     self.extendedData[self.dataName] = self.dataValue.strip()
@@ -710,6 +724,12 @@ class PreProcessHandler(xml.sax.handler.ContentHandler, QObject):
     def startElement(self, name, attr):
 
         if name == "Data" and self.inExtendedData:
+            self.dataName = None
+            for (k, v) in list(attr.items()):
+                if k == 'name':
+                    if v:
+                        self.extendedData.add(v)
+        elif name == "SimpleData" and self.inExtendedData:
             self.dataName = None
             for (k, v) in list(attr.items()):
                 if k == 'name':
