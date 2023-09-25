@@ -2,7 +2,7 @@
 name=KML Tools
 qgisMinimumVersion=3.10.1
 description=Fast KML/KMZ importer, exporter, with description field expansion and ground overlay to GeoTIFF conversions.
-version=3.1.30
+version=3.1.31
 author=C Hamilton
 email=adenaculture@gmail.com
 about=
@@ -17,6 +17,7 @@ experimental=False
 deprecated=False
 hasProcessingProvider=yes
 changelog=
+    3.1.31 - Fix to let style ranges be turned on or off, effectively filtering the data
     3.1.30 - Add support for SimpleData extended data.
     3.1.29 - Fix to allow qgis_process to function correctly.
     3.1.28 - Fix extract gound overlays algorithm so it doesn't overwrite images with same names.
@@ -48,13 +49,3 @@ changelog=
     3.1.2 - Fix for QGIS categorized style KMZ exportation
     3.1.1 - Fix for older QGIS versions
     3.1.0 - Added KML export capability
-    3.0.9 - Fixed QgsProcessingException undefined error
-    3.0.8 - Support kml prefix
-    3.0.7 - Added Z dimension for polygons and fixed a bug
-    3.0.6 - Added Z dimension for points and lines
-    3.0.5 - Added extended data extraction
-    3.0.4 - Added additional multi-geometry support
-    3.0.3 - Provide support for multi-geometry line strings
-    3.0.2 - Added tag: value attribute table expansion
-    3.0.1 - Added tag=value attribute table expansion
-    3.0.0 - Initial release
