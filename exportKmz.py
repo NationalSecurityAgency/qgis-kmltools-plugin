@@ -732,14 +732,26 @@ class ExportKmzAlgorithm(QgsProcessingAlgorithm):
                     self.simple_style.linestyle.gxlabelvisibility = True
             else:  # Polygon
                 symbol_layer = symbol.symbolLayer(0)
-                stroke_style = symbol_layer.strokeStyle()
-                if stroke_style == 0:
-                    stroke_width = 0
+                layer_type = symbol_layer.layerType()
+                if layer_type == 'SimpleFill':
+                    stroke_style = symbol_layer.strokeStyle()
+                    if stroke_style == 0:
+                        stroke_width = 0
+                    else:
+                        stroke_width = symbol_layer.strokeWidth()
+                    self.simple_style.linestyle.color = qcolor2kmlcolor(symbol_layer.strokeColor(), opacity)
+                    self.simple_style.linestyle.width = stroke_width * self.line_width_factor
+                    self.simple_style.polystyle.color = qcolor2kmlcolor(symbol_layer.color(), opacity)
+                elif layer_type == 'SimpleLine':
+                    stroke_width = symbol_layer.width()
+                    self.simple_style.linestyle.color = qcolor2kmlcolor(symbol_layer.color(), opacity)
+                    self.simple_style.linestyle.width = stroke_width * self.line_width_factor
+                    self.simple_style.polystyle.color = '00ffffff'
                 else:
-                    stroke_width = symbol_layer.strokeWidth()
-                self.simple_style.linestyle.color = qcolor2kmlcolor(symbol_layer.strokeColor(), opacity)
-                self.simple_style.linestyle.width = stroke_width * self.line_width_factor
-                self.simple_style.polystyle.color = qcolor2kmlcolor(symbol_layer.color(), opacity)
+                    stroke_width = 0.5
+                    self.simple_style.linestyle.color = 'ff000000'
+                    self.simple_style.linestyle.width = stroke_width * self.line_width_factor
+                    self.simple_style.polystyle.color = 'ffffffff'
                 if name_field and poly_hidden_point_label:
                     self.simple_style.iconstyle.scale = 0
         elif symtype == 2: # Categorized Symbols
